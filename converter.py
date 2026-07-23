@@ -432,7 +432,10 @@ def rule_refine(name, spec):
 #   gemini-flash-latest      -> 현재 Gemini 3.x flash  (품질↑, 출력 비쌈 $9/1M)
 #   gemini-flash-lite-latest -> 현재 Gemini 3.x flash-lite (저비용 $2.5/1M, 대량용)
 # 고정 2.5 ID(gemini-2.5-flash 등)는 신규 키에 제공되지 않는다.
-GEMINI_MODEL = "gemini-flash-lite-latest"
+# 기본은 flash: 카탈로그 코드 범벅인 옵션까지 깔끔히 정리해 공문서 가독성이
+# 좋다(유료 키 기준 견적서당 15원 안팎, 무료 티어는 무과금). 대량·저비용이
+# 우선이면 UI 에서 flash-lite 로 바꾸면 된다.
+GEMINI_MODEL = "gemini-flash-latest"
 #
 # Gemini 3.x 는 thinking 을 thinkingBudget 이 아니라 thinkingLevel 로 제어한다.
 #   "minimal" | "low" | "medium" | "high"  (숫자 budget=0 은 400 을 낸다)

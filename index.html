@@ -6,117 +6,190 @@
 <title>오픈마켓 견적서 변환기</title>
 <style>
   :root {
-    --bg: #f6f7f9; --card: #ffffff; --line: #e3e6ea; --ink: #1f2933;
-    --sub: #66707a; --brand: #2f6fed; --brand-ink: #fff;
-    --ok: #1f7a1f; --bad: #c0392b; --warn-bg: #fff8e6; --code-bg: #f2f4f7;
+    --bg: #eaeef3; --card: #ffffff; --line: #d5dce5; --ink: #16212e;
+    --sub: #586573; --brand: #123e73; --brand-2: #1d5aa6; --brand-ink: #ffffff;
+    --band: #0f3562; --band-ink: #eaf1fb; --band-line: #2b5688;
+    --ok: #1c7a3f; --bad: #c0392b; --warn-bg: #fff8e6; --warn-line: #e2c25a;
+    --code-bg: #f2f5f9; --shadow: 0 1px 2px rgba(16,32,60,.06), 0 8px 24px rgba(16,32,60,.06);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #14171b; --card: #1c2026; --line: #2c323a; --ink: #e6e9ec;
-      --sub: #9aa4ae; --brand: #4f86f7; --code-bg: #12151a; --warn-bg: #2a2510;
+      --bg: #0e141d; --card: #161e2a; --line: #27313f; --ink: #e6ecf3;
+      --sub: #96a3b2; --brand: #2f6fb5; --brand-2: #6aa2e6; --brand-ink: #ffffff;
+      --band: #0c1926; --band-ink: #dce8f6; --band-line: #223247;
+      --code-bg: #10161f; --warn-bg: #2a2510; --warn-line: #6b5a1f;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.3);
     }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e141d; --card: #161e2a; --line: #27313f; --ink: #e6ecf3;
+    --sub: #96a3b2; --brand: #2f6fb5; --brand-2: #6aa2e6; --brand-ink: #ffffff;
+    --band: #0c1926; --band-ink: #dce8f6; --band-line: #223247;
+    --code-bg: #10161f; --warn-bg: #2a2510; --warn-line: #6b5a1f;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.3);
+  }
+  :root[data-theme="light"] {
+    --bg: #eaeef3; --card: #ffffff; --line: #d5dce5; --ink: #16212e;
+    --sub: #586573; --brand: #123e73; --brand-2: #1d5aa6; --brand-ink: #ffffff;
+    --band: #0f3562; --band-ink: #eaf1fb; --band-line: #2b5688;
+    --code-bg: #f2f5f9; --warn-bg: #fff8e6; --warn-line: #e2c25a;
+    --shadow: 0 1px 2px rgba(16,32,60,.06), 0 8px 24px rgba(16,32,60,.06);
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--bg); color: var(--ink);
-    font-family: "Malgun Gothic", "맑은 고딕", system-ui, -apple-system, sans-serif;
-    line-height: 1.5; font-size: 15px;
+    font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", system-ui, -apple-system, sans-serif;
+    line-height: 1.6; font-size: 15px; -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 18px 60px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  .lead { color: var(--sub); margin: 0 0 20px; font-size: 14px; }
+  /* ---- 상단 관인 밴드 ---- */
+  .topbar { height: 4px; background: linear-gradient(90deg, var(--brand) 0%, var(--brand-2) 100%); }
+  .masthead { background: var(--band); color: var(--band-ink); border-bottom: 1px solid var(--band-line); }
+  .masthead .inner { max-width: 880px; margin: 0 auto; padding: 20px 18px; display: flex; align-items: center; gap: 14px; }
+  .emblem { flex: none; width: 46px; height: 46px; display: grid; place-items: center;
+    border: 1.5px solid rgba(255,255,255,.35); border-radius: 50%; }
+  .masthead h1 { font-size: 20px; margin: 0; letter-spacing: -.3px; font-weight: 700; color: #fff; }
+  .masthead .sub { margin: 2px 0 0; font-size: 12.5px; color: var(--band-ink); opacity: .82; }
+  .mast-tag { margin-left: auto; font-size: 11.5px; letter-spacing: .3px; padding: 4px 10px;
+    border: 1px solid rgba(255,255,255,.28); border-radius: 999px; color: var(--band-ink); white-space: nowrap; }
+  /* ---- 본문 ---- */
+  .wrap { max-width: 880px; margin: 0 auto; padding: 26px 18px 40px; }
+  .lead { color: var(--sub); margin: 0 0 22px; font-size: 13.5px; padding: 12px 16px;
+    background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--brand-2);
+    border-radius: 8px; box-shadow: var(--shadow); }
   .card {
     background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-    padding: 18px; margin-bottom: 16px;
+    padding: 20px 22px; margin-bottom: 18px; box-shadow: var(--shadow);
   }
-  label.field { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
-  .hint { color: var(--sub); font-size: 12.5px; margin: 4px 0 0; }
+  .cardhead { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .badge { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--brand); color: #fff; font-size: 13px; font-weight: 700; }
+  .cardtitle { font-size: 15px; font-weight: 700; letter-spacing: -.2px; }
+  .cardtitle .opt { font-weight: 400; color: var(--sub); font-size: 13px; }
+  .hint { color: var(--sub); font-size: 12.5px; margin: 8px 0 0; line-height: 1.55; }
   input[type="password"], input[type="text"] {
-    width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
-    background: var(--bg); color: var(--ink); font-size: 14px;
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--ink); font-size: 14px; transition: border-color .15s, box-shadow .15s;
+  }
+  input[type="password"]:focus, input[type="text"]:focus {
+    outline: none; border-color: var(--brand-2); box-shadow: 0 0 0 3px rgba(29,90,166,.15);
   }
   .drop {
-    border: 2px dashed var(--line); border-radius: 10px; padding: 22px;
-    text-align: center; color: var(--sub); cursor: pointer; transition: .15s;
-    background: var(--bg);
+    border: 1.5px dashed var(--line); border-radius: 10px; padding: 26px;
+    text-align: center; color: var(--sub); cursor: pointer; transition: .15s; background: var(--bg);
   }
-  .drop.hover { border-color: var(--brand); color: var(--brand); }
-  .filelist { margin: 10px 0 0; padding: 0; list-style: none; font-size: 13.5px; }
-  .filelist li { padding: 3px 0; color: var(--ink); }
-  .filelist .rm { color: var(--bad); cursor: pointer; margin-left: 8px; font-size: 12px; }
+  .drop:hover { border-color: var(--brand-2); }
+  .drop.hover { border-color: var(--brand-2); color: var(--brand-2); background: rgba(29,90,166,.05); }
+  .drop b { color: var(--ink); font-weight: 600; }
+  .filelist { margin: 12px 0 0; padding: 0; list-style: none; font-size: 13.5px; }
+  .filelist li { padding: 8px 12px; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 8px; margin-bottom: 6px; display: flex; align-items: center; }
+  .filelist .rm { color: var(--bad); cursor: pointer; margin-left: auto; font-size: 12px; font-weight: 600; }
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   button {
-    font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+    font-family: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer;
     border: 1px solid var(--line); border-radius: 8px; padding: 10px 18px;
-    background: var(--card); color: var(--ink);
+    background: var(--card); color: var(--ink); transition: .12s;
   }
+  button:hover:not(:disabled) { border-color: var(--brand-2); color: var(--brand-2); }
   button.primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  .chk { display: flex; align-items: center; gap: 7px; font-size: 13.5px; color: var(--sub); margin-top: 10px; }
-  .chk input { width: 16px; height: 16px; }
-  #status { font-size: 13.5px; color: var(--sub); margin-top: 12px; min-height: 20px; white-space: pre-wrap; }
+  button.primary:hover:not(:disabled) { background: var(--brand-2); border-color: var(--brand-2); color: #fff; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .chk { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--sub); margin-top: 12px; }
+  .chk input { width: 16px; height: 16px; accent-color: var(--brand); }
+  #status { font-size: 13.5px; color: var(--sub); min-height: 20px; white-space: pre-wrap; }
   .spinner {
     display: inline-block; width: 13px; height: 13px; border: 2px solid var(--line);
-    border-top-color: var(--brand); border-radius: 50%; animation: spin .8s linear infinite;
+    border-top-color: var(--brand-2); border-radius: 50%; animation: spin .8s linear infinite;
     vertical-align: -2px; margin-right: 7px;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .progress { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 10px; }
-  .progress > i { display: block; height: 100%; width: 0; background: var(--brand); border-radius: 999px; transition: width .25s ease; }
-  label.sel { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--sub); font-weight: 600; }
+  .progress { height: 7px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 12px; }
+  .progress > i { display: block; height: 100%; width: 0;
+    background: linear-gradient(90deg, var(--brand) 0%, var(--brand-2) 100%); border-radius: 999px; transition: width .25s ease; }
+  .grid2 { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; }
+  label.sel { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--sub); font-weight: 700;
+    letter-spacing: .2px; flex: 1 1 200px; }
   label.sel select {
-    font-family: inherit; font-size: 13.5px; padding: 7px 9px; border: 1px solid var(--line);
-    border-radius: 8px; background: var(--bg); color: var(--ink); font-weight: 400;
+    font-family: inherit; font-size: 13.5px; padding: 9px 10px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--bg); color: var(--ink); font-weight: 400; cursor: pointer;
   }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
-  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: right; }
-  th { background: var(--code-bg); }
+  label.sel select:focus { outline: none; border-color: var(--brand-2); box-shadow: 0 0 0 3px rgba(29,90,166,.15); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+  th, td { border: 1px solid var(--line); padding: 7px 9px; text-align: right; }
+  th { background: var(--band); color: var(--band-ink); font-weight: 600; }
   td.l, th.l { text-align: left; }
+  tbody tr:nth-child(even) td { background: var(--code-bg); }
   .ok { color: var(--ok); font-weight: 700; }
   .bad { color: var(--bad); font-weight: 700; }
   pre.report {
     background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
-    padding: 12px; font-size: 12.5px; overflow-x: auto; white-space: pre-wrap; margin: 0;
+    padding: 14px; font-size: 12.5px; overflow-x: auto; white-space: pre-wrap; margin: 14px 0 0; line-height: 1.55;
   }
-  .err { background: var(--warn-bg); border: 1px solid #d9b400; border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-top: 12px; }
+  .err { background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 8px; padding: 11px 14px; font-size: 13px; margin-top: 14px; }
   .hidden { display: none; }
-  a.ghost { color: var(--brand); text-decoration: none; font-size: 13px; }
+  a.ghost { color: var(--brand-2); text-decoration: none; font-size: 13px; font-weight: 600; }
+  a.ghost:hover { text-decoration: underline; }
+  .divider { height: 1px; background: var(--line); margin: 16px 0; }
+  .gov-footer { max-width: 880px; margin: 8px auto 0; padding: 20px 18px 40px; color: var(--sub); font-size: 12px; line-height: 1.7; border-top: 1px solid var(--line); }
+  .gov-footer b { color: var(--ink); font-weight: 600; }
   .toast {
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 8px;
-    font-size: 13.5px; opacity: 0; transition: opacity .2s; pointer-events: none;
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--band); color: var(--band-ink); padding: 11px 18px; border-radius: 8px;
+    font-size: 13.5px; opacity: 0; transition: opacity .2s; pointer-events: none; box-shadow: var(--shadow);
+    border: 1px solid var(--band-line);
   }
-  .toast.show { opacity: .95; }
+  .toast.show { opacity: .97; }
+  @media (max-width: 560px) {
+    .masthead .inner { padding: 16px; } .mast-tag { display: none; }
+    .card { padding: 16px; } .wrap { padding: 20px 14px 30px; }
+  }
 </style>
 </head>
 <body>
+<div class="topbar"></div>
+<header class="masthead">
+  <div class="inner">
+    <span class="emblem" aria-hidden="true">
+      <svg viewBox="0 0 44 44" width="26" height="26" fill="none" stroke="#eaf1fb" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13 5h13l7 7v27H13z"/>
+        <path d="M26 5v7h7"/>
+        <path d="M17 22l3.5 3.5L28 18"/>
+      </svg>
+    </span>
+    <div>
+      <h1>오픈마켓 견적서 변환기</h1>
+      <p class="sub">지마켓 · 옥션 · 11번가 견적서를 에듀파인 물품내역 서식으로 정리</p>
+    </div>
+    <span class="mast-tag">브라우저 내 처리 · 무설치</span>
+  </div>
+</header>
+
 <div class="wrap">
-  <h1>오픈마켓 견적서 변환기</h1>
-  <p class="lead">지마켓·옥션(.xls)과 11번가(PDF) 견적서를 엑셀 표로 정리합니다. 모든 처리는 이 브라우저 안에서만 이뤄집니다 — 파일도 키도 서버로 보내지 않습니다.</p>
+  <p class="lead">업로드한 견적서는 <b>이 브라우저 안에서만</b> 분석됩니다. 파일도 API 키도 별도 서버로 전송·저장되지 않습니다. 결과는 에듀파인 업로드용 서식과 검토용 보고서로 내려받을 수 있습니다.</p>
 
   <div class="card">
-    <label class="field">1. 견적서 파일</label>
+    <div class="cardhead"><span class="badge">1</span><span class="cardtitle">견적서 파일 업로드</span></div>
     <div class="drop" id="drop">
-      파일을 여기로 끌어다 놓거나 클릭해서 선택하세요<br>
-      <span class="hint">지마켓/옥션 .xls, 11번가 .pdf (여러 개 가능)</span>
+      <b>파일을 끌어다 놓거나</b> 클릭하여 선택하세요<br>
+      <span class="hint">지마켓 · 옥션 (.xls) / 11번가 (.pdf) — 여러 개 동시 가능</span>
     </div>
     <input type="file" id="file" class="hidden" multiple accept=".xls,.xlsx,.pdf">
     <ul class="filelist" id="filelist"></ul>
   </div>
 
   <div class="card">
-    <label class="field" for="key">2. Gemini API 키 <span style="font-weight:400;color:var(--sub)">(선택)</span></label>
-    <input type="password" id="key" placeholder="AIza... (없으면 규칙 기반으로 정리)" autocomplete="off">
-    <p class="hint">품명을 더 깔끔하게 정리하려면 본인 Gemini 키를 넣으세요. 키는 이 브라우저에서 구글로 직접 전송되며 서버를 거치지 않습니다. 비워두면 키 없이 규칙 기반으로 정리합니다. <a class="ghost" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">키 발급 →</a></p>
+    <div class="cardhead"><span class="badge">2</span><span class="cardtitle">Gemini API 키 <span class="opt">(선택 · 품명 자동 정리)</span></span></div>
+    <input type="password" id="key" placeholder="API 키 붙여넣기 — 비워두면 규칙 기반으로 정리" autocomplete="off">
+    <p class="hint">품명을 더 깔끔하게 정리하려면 본인 Gemini 키를 넣으세요. 키는 이 브라우저에서 구글로 직접 전송되며 서버를 거치지 않습니다. <a class="ghost" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">키 발급 →</a></p>
     <label class="chk"><input type="checkbox" id="remember"> 이 브라우저에 키 기억하기 (본인 PC에서만 권장)</label>
-    <div class="row" style="margin-top:14px; gap:16px; align-items:flex-end;">
+    <div class="grid2">
       <label class="sel">모델
         <select id="model">
-          <option value="gemini-flash-lite-latest" selected>flash-lite · 저비용/대량</option>
-          <option value="gemini-flash-latest">flash · 품질 우선</option>
+          <option value="gemini-flash-latest" selected>flash · 품질 우선(권장)</option>
+          <option value="gemini-flash-lite-latest">flash-lite · 저비용/대량</option>
         </select>
       </label>
-      <label class="sel">정리 강도(thinking)
+      <label class="sel">정리 강도 (thinking)
         <select id="thinking">
           <option value="minimal">minimal · 가장 저렴·빠름</option>
           <option value="low" selected>low · 권장(품질/비용 균형)</option>
@@ -125,10 +198,11 @@
         </select>
       </label>
     </div>
-    <p class="hint"><b>무료 티어 키는 요금이 청구되지 않습니다.</b> 결과에 표시되는 "약 N원"은 <b>유료 키를 쓸 때</b>의 참고 비용입니다. 기본값 <b>flash-lite + low</b>면 대부분 충분합니다. flash-lite에선 강도를 올려도 비용이 거의 그대로이고, 비용을 크게 키우는 건 <b>flash 모델</b>입니다. 넣기 전 <b>검토용 보고서의 원문대조</b>로 한 번 확인하세요.</p>
+    <p class="hint"><b>무료 티어 키는 요금이 청구되지 않습니다.</b> 결과의 "약 N원"은 <b>유료 키 기준</b> 참고 비용입니다. 기본값 <b>flash + low</b>는 옵션·규격까지 깔끔하게 정리해 공문서에 적합합니다(견적서 1건당 유료 기준 15원 안팎). 대량·저비용이 우선이면 <b>flash-lite</b>로 바꾸세요. 넣기 전 <b>검토용 보고서의 원문대조</b>로 확인을 권장합니다.</p>
   </div>
 
   <div class="card">
+    <div class="cardhead"><span class="badge">3</span><span class="cardtitle">변환 실행</span></div>
     <div class="row">
       <button class="primary" id="run" disabled>변환하기</button>
       <span id="status"><span class="spinner"></span>준비 중… (처음 한 번은 파이썬 런타임을 내려받아 조금 걸립니다)</span>
@@ -137,18 +211,24 @@
   </div>
 
   <div class="card hidden" id="results">
-    <label class="field">결과</label>
+    <div class="cardhead"><span class="badge">✓</span><span class="cardtitle">변환 결과</span></div>
     <div id="summary"></div>
-    <div class="row" style="margin:14px 0;">
+    <div class="row" style="margin:16px 0 0;">
       <button class="primary" id="download-edufine">에듀파인 업로드용 (물품내역.xlsx)</button>
       <button id="download">검토용 보고서 (.xlsx)</button>
       <button id="copy">표 복사 (붙여넣기)</button>
     </div>
-    <p class="hint" style="margin:-6px 0 4px">에듀파인 업로드용은 「물품내역」 서식 그대로라 내려받아 바로 올릴 수 있습니다. 검토용 보고서는 요약·원문대조까지 담은 확인용입니다.</p>
+    <p class="hint">에듀파인 업로드용은 「물품내역」 서식 그대로라 내려받아 바로 올릴 수 있습니다. 검토용 보고서는 요약·원문대조까지 담은 확인용입니다.</p>
+    <div class="divider"></div>
     <pre class="report" id="report"></pre>
     <div id="errors"></div>
   </div>
 </div>
+
+<footer class="gov-footer">
+  <b>개인정보 및 처리 안내</b> · 모든 파일 분석과 엑셀 생성은 사용자 브라우저(WebAssembly) 내에서 수행되며, 견적서 파일과 API 키는 외부 서버로 전송·저장되지 않습니다. Gemini 품명 정리를 사용하는 경우에 한해, 품명·규격 텍스트가 사용자의 키로 Google API에 직접 전송됩니다.<br>
+  정리된 품명·규격은 가독성을 위해 재작성된 값이므로, 공문서 반영 전 <b>원문대조</b> 시트로 확인하시기 바랍니다.
+</footer>
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/pyodide/v0.28.3/full/pyodide.js"></script>
