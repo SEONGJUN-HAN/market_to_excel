@@ -427,7 +427,10 @@ def rule_refine(name, spec):
 # (신규 키에도 열려 있고 최신 flash 품질. 대신 별칭이라 구글이 가리키는
 #  실제 모델은 바뀔 수 있다. 더 싼 저사양이 필요하면 gemini-flash-lite-latest.)
 GEMINI_MODEL = "gemini-flash-latest"
-THINKING_BUDGET = 0
+# None 이면 thinkingConfig 를 아예 안 보낸다(모델 기본값 사용).
+# 2.5-flash 는 budget=0 으로 thinking 을 끌 수 있었지만, 최신 flash 는
+# 그 인자를 거부해 400(invalid argument) 을 내므로 기본은 안 보낸다.
+THINKING_BUDGET = None
 
 PROMPT = """너는 학교 회계 담당자가 오픈마켓 견적서를 정리하는 일을 돕는다.
 
@@ -494,6 +497,22 @@ async def _retry_wait(resp, attempt):
     return min(wait, 60)
 
 
+def _error_text(err):
+    """Google 오류 JSON 에서 사람이 읽을 메시지를 뽑는다.
+    필드 위반(어느 인자가 잘못됐는지)이 있으면 함께 붙인다."""
+    e = err.get("error") or {}
+    msg = e.get("message") or ""
+    fields = []
+    for d in e.get("details") or []:
+        for fv in d.get("fieldViolations") or []:
+            f = fv.get("field")
+            if f:
+                fields.append(f)
+    if fields:
+        msg += f" (문제 필드: {', '.join(fields)})"
+    return msg or f"HTTP {e.get('code', '')}"
+
+
 async def gemini_refine(items, api_key, progress=None):
     """품명/규격만 Gemini REST 로 다듬는다. 실패하면 규칙 기반 결과를 유지한다.
     브라우저 fetch(pyodide.http.pyfetch)를 asyncio 로 동시에 날린다."""
@@ -516,14 +535,16 @@ async def gemini_refine(items, api_key, progress=None):
     async def work(chunk):
         payload = [{"i": i, "원본품명": n, "원본규격": sp}
                    for i, (n, sp) in enumerate(chunk)]
+        gen_config = {
+            "temperature": 0,
+            "responseMimeType": "application/json",
+        }
+        if THINKING_BUDGET is not None:
+            gen_config["thinkingConfig"] = {"thinkingBudget": THINKING_BUDGET}
         body = {
             "contents": [{"parts": [{"text": PROMPT + json.dumps(
                 payload, ensure_ascii=False, indent=1)}]}],
-            "generationConfig": {
-                "temperature": 0,
-                "responseMimeType": "application/json",
-                "thinkingConfig": {"thinkingBudget": THINKING_BUDGET},
-            },
+            "generationConfig": gen_config,
         }
         data = None
         rate_limited = False
@@ -573,9 +594,9 @@ async def gemini_refine(items, api_key, progress=None):
                 # 그 외 HTTP 오류: 서버가 준 메시지를 그대로 남겨 원인 파악에 쓴다.
                 try:
                     err = await resp.json()
-                    state["err_msg"] = state["err_msg"] or (
-                        (err.get("error") or {}).get("message")
-                        or f"HTTP {resp.status}")
+                    state["err_msg"] = (state["err_msg"]
+                                        or _error_text(err)
+                                        or f"HTTP {resp.status}")
                 except Exception:
                     state["err_msg"] = state["err_msg"] or f"HTTP {resp.status}"
                 break
