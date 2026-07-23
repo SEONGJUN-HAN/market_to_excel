@@ -427,7 +427,56 @@ $("download-edufine").addEventListener("click", () => {
   if (lastResult && lastResult.edufine) downloadBytes(lastResult.edufine, "물품내역");
 });
 
-initPyodide().catch((e) => { setStatus("초기화 실패: " + e.message, false); console.error(e); });
+// ---------- 장바구니 북마클릿에서 넘어온 견적서 받기 ----------
+// 주소 뒤 '#cart=...' 로 견적서가 실려 오면 파일을 올린 것과 똑같이 취급한다.
+// '#' 뒷부분은 서버로 전송되지 않으므로 브라우저 안에만 머문다.
+// 앞 한 글자가 인코딩 표시다. g=gzip, r=raw
+function b64urlToBytes(s) {
+  const b = s.replace(/-/g, "+").replace(/_/g, "/");
+  const bin = atob(b + "=".repeat((4 - (b.length % 4)) % 4));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function unpack(payload) {
+  const bytes = b64urlToBytes(payload.slice(1));
+  if (payload[0] !== "g") return bytes;
+  const ds = new DecompressionStream("gzip");
+  const w = ds.writable.getWriter();
+  w.write(bytes); w.close();
+  return new Uint8Array(await new Response(ds.readable).arrayBuffer());
+}
+
+async function loadFromHash() {
+  const m = location.hash.match(/^#cart=(.+)$/);
+  if (!m) return false;
+  // 주소창을 정리해 새로고침 때 같은 데이터가 또 올라가지 않게 한다.
+  history.replaceState(null, "", location.pathname + location.search);
+  try {
+    const bytes = await unpack(m[1]);
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    files.push({
+      name: `장바구니_견적_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}.xls`,
+      bytes,
+    });
+    renderFiles();
+    toast("장바구니에서 견적서를 받았습니다");
+    return true;
+  } catch (e) {
+    console.error(e);
+    setStatus("장바구니에서 넘어온 데이터를 읽지 못했습니다: " + e.message, false);
+    return false;
+  }
+}
+
+(async () => {
+  const fromCart = await loadFromHash();
+  await initPyodide();
+  // 장바구니에서 바로 넘어온 경우엔 누를 것 없이 변환까지 이어간다.
+  if (fromCart && files.length > 0) runBtn.click();
+})().catch((e) => { setStatus("초기화 실패: " + e.message, false); console.error(e); });
 </script>
 </body>
 </html>
