@@ -421,7 +421,10 @@ def rule_refine(name, spec):
 
 # ---------------------------------------------------------------- 품명 다듬기 (Gemini, 브라우저 fetch)
 
-GEMINI_MODEL = "gemini-2.5-flash"
+# gemini-2.5-flash 는 2025년 이후 신규 키에 제공되지 않는다.
+# flash-lite 는 신규 키에도 열려 있고 무료 티어 한도(RPM)가 더 높으며 더 싸다.
+# 품질을 더 원하면 "gemini-flash-latest" (최신 flash 별칭) 로 바꾸면 된다.
+GEMINI_MODEL = "gemini-2.5-flash-lite"
 THINKING_BUDGET = 0
 
 PROMPT = """너는 학교 회계 담당자가 오픈마켓 견적서를 정리하는 일을 돕는다.
