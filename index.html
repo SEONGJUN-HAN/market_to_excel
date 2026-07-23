@@ -63,6 +63,11 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .progress { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 10px; }
   .progress > i { display: block; height: 100%; width: 0; background: var(--brand); border-radius: 999px; transition: width .25s ease; }
+  label.sel { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--sub); font-weight: 600; }
+  label.sel select {
+    font-family: inherit; font-size: 13.5px; padding: 7px 9px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--bg); color: var(--ink); font-weight: 400;
+  }
   table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
   th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: right; }
   th { background: var(--code-bg); }
@@ -104,6 +109,23 @@
     <input type="password" id="key" placeholder="AIza... (없으면 규칙 기반으로 정리)" autocomplete="off">
     <p class="hint">품명을 더 깔끔하게 정리하려면 본인 Gemini 키를 넣으세요. 키는 이 브라우저에서 구글로 직접 전송되며 서버를 거치지 않습니다. 비워두면 키 없이 규칙 기반으로 정리합니다. <a class="ghost" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">키 발급 →</a></p>
     <label class="chk"><input type="checkbox" id="remember"> 이 브라우저에 키 기억하기 (본인 PC에서만 권장)</label>
+    <div class="row" style="margin-top:14px; gap:16px; align-items:flex-end;">
+      <label class="sel">모델
+        <select id="model">
+          <option value="gemini-flash-lite-latest" selected>flash-lite · 저비용/대량</option>
+          <option value="gemini-flash-latest">flash · 품질 우선</option>
+        </select>
+      </label>
+      <label class="sel">정리 강도(thinking)
+        <select id="thinking">
+          <option value="minimal" selected>minimal · 가장 저렴·빠름</option>
+          <option value="low">low</option>
+          <option value="medium">medium · 품질↑·비쌈</option>
+          <option value="">끄기(모델 기본값)</option>
+        </select>
+      </label>
+    </div>
+    <p class="hint">같은 파일을 두 조합으로 돌려 <b>검토용 보고서의 원문대조</b>로 품질을 비교해 보세요. 대량·저비용은 <b>flash-lite + minimal</b>, 공문서 품질이 중요하면 <b>flash + low~medium</b>을 권장합니다. 강도를 올릴수록 토큰(비용)이 늘어납니다.</p>
   </div>
 
   <div class="card">
@@ -203,6 +225,15 @@ keyInput.addEventListener("input", () => {
   if (rememberChk.checked) localStorage.setItem("gemini_key", keyInput.value.trim());
 });
 
+// ---------- 모델/thinking 선택 (선택값 기억) ----------
+const modelSel = $("model"), thinkingSel = $("thinking");
+const savedModel = localStorage.getItem("gemini_model");
+const savedThinking = localStorage.getItem("gemini_thinking");
+if (savedModel !== null) modelSel.value = savedModel;
+if (savedThinking !== null) thinkingSel.value = savedThinking;
+modelSel.addEventListener("change", () => localStorage.setItem("gemini_model", modelSel.value));
+thinkingSel.addEventListener("change", () => localStorage.setItem("gemini_thinking", thinkingSel.value));
+
 // ---------- Pyodide 초기화 ----------
 async function initPyodide() {
   setStatus("파이썬 런타임 로드 중…", true);
@@ -236,8 +267,10 @@ runBtn.addEventListener("click", async () => {
     pyodide.globals.set("JS_KEY", key);
     pyodide.globals.set("JS_USE_GEMINI", useGemini);
     pyodide.globals.set("JS_PROGRESS", updateProgress);
+    pyodide.globals.set("JS_MODEL", modelSel.value);
+    pyodide.globals.set("JS_THINKING", thinkingSel.value);
     const pyRes = await pyodide.runPythonAsync(
-      "await convert(JS_FILES, JS_KEY, JS_USE_GEMINI, JS_PROGRESS)"
+      "await convert(JS_FILES, JS_KEY, JS_USE_GEMINI, JS_PROGRESS, JS_MODEL, JS_THINKING)"
     );
     const res = pyRes.toJs({ dict_converter: Object.fromEntries });
     pyRes.destroy();

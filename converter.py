@@ -426,11 +426,18 @@ def rule_refine(name, spec):
 # 그래서 "현재 flash 를 가리키는" 별칭 gemini-flash-latest 를 쓴다.
 # (신규 키에도 열려 있고 최신 flash 품질. 대신 별칭이라 구글이 가리키는
 #  실제 모델은 바뀔 수 있다. 더 싼 저사양이 필요하면 gemini-flash-lite-latest.)
-GEMINI_MODEL = "gemini-flash-latest"
-# None 이면 thinkingConfig 를 아예 안 보낸다(모델 기본값 사용).
-# 2.5-flash 는 budget=0 으로 thinking 을 끌 수 있었지만, 최신 flash 는
-# 그 인자를 거부해 400(invalid argument) 을 내므로 기본은 안 보낸다.
-THINKING_BUDGET = None
+# 기본값(UI 에서 모델/thinking 을 넘기면 그걸 우선 쓴다).
+#
+# 모델 별칭(2026 기준 실제 매핑):
+#   gemini-flash-latest      -> 현재 Gemini 3.x flash  (품질↑, 출력 비쌈 $9/1M)
+#   gemini-flash-lite-latest -> 현재 Gemini 3.x flash-lite (저비용 $2.5/1M, 대량용)
+# 고정 2.5 ID(gemini-2.5-flash 등)는 신규 키에 제공되지 않는다.
+GEMINI_MODEL = "gemini-flash-lite-latest"
+#
+# Gemini 3.x 는 thinking 을 thinkingBudget 이 아니라 thinkingLevel 로 제어한다.
+#   "minimal" | "low" | "medium" | "high"  (숫자 budget=0 은 400 을 낸다)
+# minimal 이 가장 싸고 빠르다. 빈 문자열/None 이면 thinkingConfig 를 안 보낸다.
+THINKING_LEVEL = "minimal"
 
 PROMPT = """너는 학교 회계 담당자가 오픈마켓 견적서를 정리하는 일을 돕는다.
 
@@ -467,17 +474,18 @@ BATCH = 20
 WORKERS = 4
 MAX_RETRIES = 3   # 429(한도 초과)·503(과부하) 재시도 횟수 — 무료 티어 대응
 
-PRICE = {   # (입력, 출력) USD / 100만 토큰. 별칭도 현재 단가에 맞춰 둔다.
-    "gemini-flash-lite-latest": (0.10, 0.40),
-    "gemini-2.5-flash-lite": (0.10, 0.40),
-    "gemini-flash-latest": (0.30, 2.50),
+PRICE = {   # (입력, 출력) USD / 100만 토큰 (2026 기준, 대략치)
+    "gemini-flash-latest": (1.50, 9.00),        # 현재 3.x flash
+    "gemini-flash-lite-latest": (0.30, 2.50),   # 현재 3.x flash-lite
     "gemini-2.5-flash": (0.30, 2.50),
+    "gemini-2.5-flash-lite": (0.10, 0.40),
 }
 USD_KRW = 1400
 
 
-def estimate_won(tok_in, tok_out):
-    pin, pout = PRICE.get(GEMINI_MODEL, (0.30, 2.50))
+def estimate_won(tok_in, tok_out, model=GEMINI_MODEL):
+    # 모델을 모르면 비싼 쪽(flash)으로 잡아 비용을 과소평가하지 않는다.
+    pin, pout = PRICE.get(model, (1.50, 9.00))
     usd = tok_in / 1_000_000 * pin + tok_out / 1_000_000 * pout
     return usd * USD_KRW
 
@@ -513,11 +521,13 @@ def _error_text(err):
     return msg or f"HTTP {e.get('code', '')}"
 
 
-async def gemini_refine(items, api_key, progress=None):
+async def gemini_refine(items, api_key, progress=None,
+                        model=GEMINI_MODEL, thinking=THINKING_LEVEL):
     """품명/규격만 Gemini REST 로 다듬는다. 실패하면 규칙 기반 결과를 유지한다.
     브라우저 fetch(pyodide.http.pyfetch)를 asyncio 로 동시에 날린다."""
     from pyodide.http import pyfetch
 
+    model = model or GEMINI_MODEL
     uniq = {}
     for it in items:
         uniq.setdefault((it.raw_name, it.raw_spec), None)
@@ -527,34 +537,34 @@ async def gemini_refine(items, api_key, progress=None):
 
     chunks = [pairs[s:s + BATCH] for s in range(0, len(pairs), BATCH)]
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-           f"{GEMINI_MODEL}:generateContent?key={api_key}")
+           f"{model}:generateContent?key={api_key}")
     sem = asyncio.Semaphore(WORKERS)
     state = {"done": 0, "fail": 0, "rate_limited": 0, "retries": 0,
-             "tok_in": 0, "tok_out": 0, "err_msg": ""}
+             "tok_in": 0, "tok_out": 0, "err_msg": "", "thinking_dropped": False}
+
+    def make_body(payload, use_thinking):
+        gen_config = {"temperature": 0, "responseMimeType": "application/json"}
+        if use_thinking and thinking:
+            gen_config["thinkingConfig"] = {"thinkingLevel": thinking}
+        return json.dumps({
+            "contents": [{"parts": [{"text": PROMPT + json.dumps(
+                payload, ensure_ascii=False, indent=1)}]}],
+            "generationConfig": gen_config,
+        })
 
     async def work(chunk):
         payload = [{"i": i, "원본품명": n, "원본규격": sp}
                    for i, (n, sp) in enumerate(chunk)]
-        gen_config = {
-            "temperature": 0,
-            "responseMimeType": "application/json",
-        }
-        if THINKING_BUDGET is not None:
-            gen_config["thinkingConfig"] = {"thinkingBudget": THINKING_BUDGET}
-        body = {
-            "contents": [{"parts": [{"text": PROMPT + json.dumps(
-                payload, ensure_ascii=False, indent=1)}]}],
-            "generationConfig": gen_config,
-        }
         data = None
         rate_limited = False
+        use_thinking = bool(thinking)
         async with sem:
             for attempt in range(MAX_RETRIES + 1):
                 try:
                     resp = await pyfetch(
                         url, method="POST",
                         headers={"Content-Type": "application/json"},
-                        body=json.dumps(body),
+                        body=make_body(payload, use_thinking),
                     )
                 except Exception as e:
                     state["err_msg"] = state["err_msg"] or f"네트워크 오류: {e}"
@@ -590,6 +600,13 @@ async def gemini_refine(items, api_key, progress=None):
                     state["err_msg"] = state["err_msg"] or (
                         f"요청 한도 초과(HTTP {resp.status})")
                     break
+
+                # 400(invalid argument): thinkingLevel 이 이 모델에 안 맞을 수
+                # 있으니, thinking 을 빼고 딱 한 번 다시 시도한다(자가 치유).
+                if resp.status == 400 and use_thinking:
+                    use_thinking = False
+                    state["thinking_dropped"] = True
+                    continue
 
                 # 그 외 HTTP 오류: 서버가 준 메시지를 그대로 남겨 원인 파악에 쓴다.
                 try:
@@ -643,7 +660,9 @@ async def gemini_refine(items, api_key, progress=None):
         if got:
             it.name, it.spec = got
 
-    msg = f"Gemini({GEMINI_MODEL})로 품명 {state['done']}종을 정리했습니다. (고유 상품 {len(pairs)}종)"
+    lvl = thinking or "기본"
+    msg = (f"Gemini({model}, thinking={lvl})로 품명 {state['done']}종을 "
+           f"정리했습니다. (고유 상품 {len(pairs)}종)")
     if state["fail"]:
         other = state["fail"] - state["rate_limited"]
         if state["rate_limited"]:
@@ -656,23 +675,27 @@ async def gemini_refine(items, api_key, progress=None):
             if state["err_msg"]:
                 msg += f" ({state['err_msg']})"
     if state["tok_in"]:
-        won = estimate_won(state["tok_in"], state["tok_out"])
+        won = estimate_won(state["tok_in"], state["tok_out"], model)
         msg += (f" 토큰 입력 {state['tok_in']:,} / 출력 {state['tok_out']:,}"
                 f" — 이번 호출 약 {won:.1f}원")
+    if state["thinking_dropped"]:
+        msg += (" ※ 이 모델이 thinking 설정을 거부해 thinking 없이 처리했습니다.")
     if state["retries"] and not state["rate_limited"]:
         msg += (" ※ 무료 티어 한도로 재시도하며 처리해 다소 느렸습니다. "
                 "결제가 연결된 API 키를 쓰면 훨씬 빠릅니다.")
     return True, msg
 
 
-async def refine_all(sheets, api_key="", use_gemini=True, progress=None):
+async def refine_all(sheets, api_key="", use_gemini=True, progress=None,
+                     model=GEMINI_MODEL, thinking=THINKING_LEVEL):
     items = [it for s in sheets for it in s.items]
     for it in items:
         it.keep_raw()
         it.name, it.spec = rule_refine(it.raw_name, it.raw_spec)
     if not use_gemini or not api_key:
         return False, "규칙 기반으로만 정리했습니다. (Gemini 미사용)"
-    return await gemini_refine(items, api_key, progress=progress)
+    return await gemini_refine(items, api_key, progress=progress,
+                               model=model, thinking=thinking)
 
 
 # ---------------------------------------------------------------- 표 만들기
@@ -959,7 +982,8 @@ def write_edufine_xlsx(rows):
 
 # ---------------------------------------------------------------- 진입점 (JS 가 호출)
 
-async def convert(files, api_key="", use_gemini=True, progress=None):
+async def convert(files, api_key="", use_gemini=True, progress=None,
+                  model=GEMINI_MODEL, thinking=THINKING_LEVEL):
     """files: [(파일명, bytes), ...] -> 결과 dict.
     반환: {ok, tsv, report, refine_msg, xlsx(bytes|None), summary[], errors[]}"""
     sheets, errors = [], []
@@ -977,7 +1001,8 @@ async def convert(files, api_key="", use_gemini=True, progress=None):
         }
 
     _, refine_msg = await refine_all(
-        sheets, api_key=api_key, use_gemini=use_gemini, progress=progress)
+        sheets, api_key=api_key, use_gemini=use_gemini, progress=progress,
+        model=model, thinking=thinking)
 
     rows = build_rows(sheets)
     tsv = to_tsv(rows)
