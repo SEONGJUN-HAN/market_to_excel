@@ -457,6 +457,7 @@ PROMPT = """너는 학교 회계 담당자가 오픈마켓 견적서를 정리�
 
 BATCH = 20
 WORKERS = 4
+MAX_RETRIES = 3   # 429(한도 초과)·503(과부하) 재시도 횟수 — 무료 티어 대응
 
 PRICE = {
     "gemini-2.5-flash-lite": (0.10, 0.40),
@@ -469,6 +470,21 @@ def estimate_won(tok_in, tok_out):
     pin, pout = PRICE.get(GEMINI_MODEL, (0.30, 2.50))
     usd = tok_in / 1_000_000 * pin + tok_out / 1_000_000 * pout
     return usd * USD_KRW
+
+
+async def _retry_wait(resp, attempt):
+    """429/503 재시도 대기 시간(초). 서버가 알려준 retryDelay 를 우선 쓰고,
+    없으면 2·4·8초 지수 백오프. 최대 60초로 제한한다."""
+    wait = 2 ** (attempt + 1)
+    try:
+        err = await resp.json()
+        for d in (err.get("error") or {}).get("details") or []:
+            rd = d.get("retryDelay")
+            if isinstance(rd, str) and rd.endswith("s"):
+                wait = max(wait, float(rd[:-1]))
+    except Exception:
+        pass
+    return min(wait, 60)
 
 
 async def gemini_refine(items, api_key, progress=None):
@@ -487,7 +503,8 @@ async def gemini_refine(items, api_key, progress=None):
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
            f"{GEMINI_MODEL}:generateContent?key={api_key}")
     sem = asyncio.Semaphore(WORKERS)
-    state = {"done": 0, "fail": 0, "tok_in": 0, "tok_out": 0}
+    state = {"done": 0, "fail": 0, "rate_limited": 0, "retries": 0,
+             "tok_in": 0, "tok_out": 0, "err_msg": ""}
 
     async def work(chunk):
         payload = [{"i": i, "원본품명": n, "원본규격": sp}
@@ -501,25 +518,68 @@ async def gemini_refine(items, api_key, progress=None):
                 "thinkingConfig": {"thinkingBudget": THINKING_BUDGET},
             },
         }
+        data = None
+        rate_limited = False
         async with sem:
-            try:
-                resp = await pyfetch(
-                    url, method="POST",
-                    headers={"Content-Type": "application/json"},
-                    body=json.dumps(body),
-                )
-                res = await resp.json()
-                text = res["candidates"][0]["content"]["parts"][0]["text"]
-                data = json.loads(text)
-                u = res.get("usageMetadata") or {}
-                state["tok_in"] += u.get("promptTokenCount", 0) or 0
-                state["tok_out"] += (u.get("candidatesTokenCount", 0) or 0) + (
-                    u.get("thoughtsTokenCount", 0) or 0)
-            except Exception:
-                state["fail"] += len(chunk)
-                if progress:
-                    progress(state["done"], len(pairs))
-                return
+            for attempt in range(MAX_RETRIES + 1):
+                try:
+                    resp = await pyfetch(
+                        url, method="POST",
+                        headers={"Content-Type": "application/json"},
+                        body=json.dumps(body),
+                    )
+                except Exception as e:
+                    state["err_msg"] = state["err_msg"] or f"네트워크 오류: {e}"
+                    break
+
+                if resp.status == 200:
+                    try:
+                        res = await resp.json()
+                        text = res["candidates"][0]["content"]["parts"][0]["text"]
+                        data = json.loads(text)
+                        u = res.get("usageMetadata") or {}
+                        state["tok_in"] += u.get("promptTokenCount", 0) or 0
+                        state["tok_out"] += (u.get("candidatesTokenCount", 0) or 0) + (
+                            u.get("thoughtsTokenCount", 0) or 0)
+                    except Exception as e:
+                        state["err_msg"] = state["err_msg"] or f"응답 해석 실패: {e}"
+                    break
+
+                # 429(요청 한도 초과)·503(과부하)은 잠시 쉬었다 재시도한다.
+                # 유료 키는 여기 거의 안 걸리므로 풀 속도 그대로,
+                # 무료 키는 자동으로 느려지며 끝까지 완주한다.
+                if resp.status in (429, 503):
+                    if attempt < MAX_RETRIES:
+                        state["retries"] += 1
+                        wait = await _retry_wait(resp, attempt)
+                        if progress:
+                            progress(state["done"], len(pairs),
+                                     f"무료 티어 한도로 {wait:.0f}초 대기 후 재시도 중… "
+                                     f"({state['done']}/{len(pairs)})")
+                        await asyncio.sleep(wait)
+                        continue
+                    rate_limited = True
+                    state["err_msg"] = state["err_msg"] or (
+                        f"요청 한도 초과(HTTP {resp.status})")
+                    break
+
+                # 그 외 HTTP 오류: 서버가 준 메시지를 그대로 남겨 원인 파악에 쓴다.
+                try:
+                    err = await resp.json()
+                    state["err_msg"] = state["err_msg"] or (
+                        (err.get("error") or {}).get("message")
+                        or f"HTTP {resp.status}")
+                except Exception:
+                    state["err_msg"] = state["err_msg"] or f"HTTP {resp.status}"
+                break
+
+        if data is None:
+            state["fail"] += len(chunk)
+            if rate_limited:
+                state["rate_limited"] += len(chunk)
+            if progress:
+                progress(state["done"], len(pairs))
+            return
 
         got = 0
         for row in data:
@@ -540,7 +600,15 @@ async def gemini_refine(items, api_key, progress=None):
     await asyncio.gather(*[work(c) for c in chunks])
 
     if not state["done"]:
-        return False, "Gemini 응답을 받지 못해 규칙 기반 결과를 씁니다."
+        if state["rate_limited"] or state["retries"]:
+            return False, (
+                "무료 티어 요청 한도(분당·하루)를 초과해 Gemini 정리를 못 했습니다. "
+                "잠시 후 다시 시도하거나, 결제가 연결된 API 키를 쓰면 한도가 크게 늘어납니다. "
+                "지금은 규칙 기반 결과만 적용했습니다.")
+        if state["err_msg"]:
+            return False, (
+                f"Gemini 응답 실패: {state['err_msg']} — 규칙 기반 결과만 적용했습니다.")
+        return False, "Gemini 응답을 받지 못해 규칙 기반 결과만 적용했습니다."
 
     for it in items:
         got = uniq.get((it.raw_name, it.raw_spec))
@@ -549,11 +617,23 @@ async def gemini_refine(items, api_key, progress=None):
 
     msg = f"Gemini({GEMINI_MODEL})로 품명 {state['done']}종을 정리했습니다. (고유 상품 {len(pairs)}종)"
     if state["fail"]:
-        msg += f" — {state['fail']}종은 응답을 못 받아 원문 그대로 두었습니다."
+        other = state["fail"] - state["rate_limited"]
+        if state["rate_limited"]:
+            msg += f" — {state['rate_limited']}종은 무료 티어 요청 한도 초과"
+            if other > 0:
+                msg += f", {other}종은 응답 실패"
+            msg += "로 원문 그대로 두었습니다. (잠시 후 재시도하거나 결제 연결된 키 권장)"
+        else:
+            msg += f" — {state['fail']}종은 응답을 못 받아 원문 그대로 두었습니다."
+            if state["err_msg"]:
+                msg += f" ({state['err_msg']})"
     if state["tok_in"]:
         won = estimate_won(state["tok_in"], state["tok_out"])
         msg += (f" 토큰 입력 {state['tok_in']:,} / 출력 {state['tok_out']:,}"
                 f" — 이번 호출 약 {won:.1f}원")
+    if state["retries"] and not state["rate_limited"]:
+        msg += (" ※ 무료 티어 한도로 재시도하며 처리해 다소 느렸습니다. "
+                "결제가 연결된 API 키를 쓰면 훨씬 빠릅니다.")
     return True, msg
 
 

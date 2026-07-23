@@ -61,6 +61,8 @@
     vertical-align: -2px; margin-right: 7px;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .progress { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 10px; }
+  .progress > i { display: block; height: 100%; width: 0; background: var(--brand); border-radius: 999px; transition: width .25s ease; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
   th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: right; }
   th { background: var(--code-bg); }
@@ -109,6 +111,7 @@
       <button class="primary" id="run" disabled>변환하기</button>
       <span id="status"><span class="spinner"></span>준비 중… (처음 한 번은 파이썬 런타임을 내려받아 조금 걸립니다)</span>
     </div>
+    <div class="progress hidden" id="progress"><i id="progressBar"></i></div>
   </div>
 
   <div class="card hidden" id="results">
@@ -135,9 +138,19 @@ let lastResult = null;
 
 const $ = (id) => document.getElementById(id);
 const statusEl = $("status"), runBtn = $("run");
+const progressWrap = $("progress"), progressBar = $("progressBar");
 
 function setStatus(text, busy) {
   statusEl.innerHTML = (busy ? '<span class="spinner"></span>' : "") + text;
+}
+// 파이썬 refine 진행률 콜백. total 이 0/없으면 진행바를 숨긴다.
+// note 가 오면(재시도 대기 등) 그 문구를 상태줄에 그대로 보여준다.
+function updateProgress(done, total, note) {
+  if (!total) { progressWrap.classList.add("hidden"); return; }
+  progressWrap.classList.remove("hidden");
+  const pct = Math.max(0, Math.min(100, Math.round((done / total) * 100)));
+  progressBar.style.width = pct + "%";
+  setStatus(note ? note : `Gemini 품명 정리 중… ${done}/${total} (${pct}%)`, true);
 }
 function toast(msg) {
   const t = $("toast"); t.textContent = msg; t.classList.add("show");
@@ -222,8 +235,9 @@ runBtn.addEventListener("click", async () => {
     pyodide.globals.set("JS_FILES", pyodide.toPy(jsFiles));
     pyodide.globals.set("JS_KEY", key);
     pyodide.globals.set("JS_USE_GEMINI", useGemini);
+    pyodide.globals.set("JS_PROGRESS", updateProgress);
     const pyRes = await pyodide.runPythonAsync(
-      "await convert(JS_FILES, JS_KEY, JS_USE_GEMINI)"
+      "await convert(JS_FILES, JS_KEY, JS_USE_GEMINI, JS_PROGRESS)"
     );
     const res = pyRes.toJs({ dict_converter: Object.fromEntries });
     pyRes.destroy();
@@ -234,6 +248,7 @@ runBtn.addEventListener("click", async () => {
     setStatus("오류: " + e.message, false);
     console.error(e);
   } finally {
+    updateProgress(0, 0);   // 진행바 숨김
     runBtn.disabled = false;
   }
 });
