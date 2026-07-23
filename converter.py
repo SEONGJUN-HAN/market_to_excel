@@ -421,10 +421,12 @@ def rule_refine(name, spec):
 
 # ---------------------------------------------------------------- 품명 다듬기 (Gemini, 브라우저 fetch)
 
-# gemini-2.5-flash 는 2025년 이후 신규 키에 제공되지 않는다.
-# flash-lite 는 신규 키에도 열려 있고 무료 티어 한도(RPM)가 더 높으며 더 싸다.
-# 품질을 더 원하면 "gemini-flash-latest" (최신 flash 별칭) 로 바꾸면 된다.
-GEMINI_MODEL = "gemini-2.5-flash-lite"
+# gemini-2.5-flash / -flash-lite 같은 2.5 고정 ID 는 신규 API 키에는
+# 더 이상 제공되지 않는다("no longer available to new users").
+# 그래서 "현재 flash 를 가리키는" 별칭 gemini-flash-latest 를 쓴다.
+# (신규 키에도 열려 있고 최신 flash 품질. 대신 별칭이라 구글이 가리키는
+#  실제 모델은 바뀔 수 있다. 더 싼 저사양이 필요하면 gemini-flash-lite-latest.)
+GEMINI_MODEL = "gemini-flash-latest"
 THINKING_BUDGET = 0
 
 PROMPT = """너는 학교 회계 담당자가 오픈마켓 견적서를 정리하는 일을 돕는다.
@@ -462,8 +464,10 @@ BATCH = 20
 WORKERS = 4
 MAX_RETRIES = 3   # 429(한도 초과)·503(과부하) 재시도 횟수 — 무료 티어 대응
 
-PRICE = {
+PRICE = {   # (입력, 출력) USD / 100만 토큰. 별칭도 현재 단가에 맞춰 둔다.
+    "gemini-flash-lite-latest": (0.10, 0.40),
     "gemini-2.5-flash-lite": (0.10, 0.40),
+    "gemini-flash-latest": (0.30, 2.50),
     "gemini-2.5-flash": (0.30, 2.50),
 }
 USD_KRW = 1400
