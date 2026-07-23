@@ -800,6 +800,55 @@ def write_report_xlsx(sheets, rows, refine_msg=""):
     return buf.getvalue()
 
 
+# ---------------------------------------------------------------- 에듀파인 업로드 서식
+# 에듀파인 '물품내역' 업로드 서식에 그대로 맞춘 파일을 만든다. 내려받아 바로 업로드할 수 있다.
+# (원본 서식은 바이너리 .xls 지만, 실측 결과 .xlsx 도 에듀파인이 그대로 인식·업로드된다.
+#  그래서 별도 라이브러리 없이 openpyxl 로 .xlsx 를 만든다.)
+# 인식 조건상 시트명은 반드시 '물품내역' 이어야 하고, 이 한 장만 담는다(다른 시트 없음).
+#   열: 품명 · 규격 · 수량 · 단위 · 예상단가 · 예상금액 · 용도
+#   단위는 '개', 용도는 빈칸. 배송비도 한 행으로 들어간다(서식 원본과 동일).
+
+EDUFINE_HEADER = ["품명", "규격", "수량", "단위", "예상단가", "예상금액", "용도"]
+
+
+def write_edufine_xlsx(rows):
+    """build_rows() 결과를 에듀파인 물품내역 서식(.xlsx, 시트명 '물품내역')으로 만든다."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "물품내역"
+
+    bold = Font(bold=True)
+    center = Alignment(horizontal="center", vertical="center")
+    money = "#,##0"
+
+    for c, h in enumerate(EDUFINE_HEADER, start=1):
+        cell = ws.cell(row=1, column=c, value=h)
+        cell.font = bold
+        cell.alignment = center
+
+    r = 1
+    for row in rows:
+        r += 1
+        name, spec, unitp, qty, amount, _note = row
+        ws.cell(row=r, column=1, value=name)
+        ws.cell(row=r, column=2, value=spec)
+        ws.cell(row=r, column=3, value=qty)
+        ws.cell(row=r, column=4, value="개")          # 단위 (서식이 전부 '개')
+        ws.cell(row=r, column=5, value=unitp).number_format = money   # 예상단가 = 금액 ÷ 수량
+        ws.cell(row=r, column=6, value=amount).number_format = money  # 예상금액 = 실결제(정확)
+        ws.cell(row=r, column=7, value="")             # 용도 (빈칸)
+
+    for col, w in zip("ABCDEFG", (44, 30, 7, 6, 11, 13, 16)):
+        ws.column_dimensions[col].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 # ---------------------------------------------------------------- 진입점 (JS 가 호출)
 
 async def convert(files, api_key="", use_gemini=True, progress=None):
@@ -815,7 +864,7 @@ async def convert(files, api_key="", use_gemini=True, progress=None):
     if not sheets:
         return {
             "ok": False, "tsv": "", "report": "",
-            "refine_msg": "", "xlsx": None,
+            "refine_msg": "", "xlsx": None, "edufine": None,
             "summary": [], "errors": errors,
         }
 
@@ -830,6 +879,11 @@ async def convert(files, api_key="", use_gemini=True, progress=None):
     except Exception as e:
         xlsx = None
         errors.append(f"엑셀 생성 실패: {e}")
+    try:
+        edufine = write_edufine_xlsx(rows)
+    except Exception as e:
+        edufine = None
+        errors.append(f"에듀파인 서식 생성 실패: {e}")
 
     summary = []
     for s in order_sheets(sheets):
@@ -844,6 +898,6 @@ async def convert(files, api_key="", use_gemini=True, progress=None):
 
     return {
         "ok": True, "tsv": tsv, "report": report,
-        "refine_msg": refine_msg, "xlsx": xlsx,
+        "refine_msg": refine_msg, "xlsx": xlsx, "edufine": edufine,
         "summary": summary, "errors": errors,
     }

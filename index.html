@@ -115,9 +115,11 @@
     <label class="field">결과</label>
     <div id="summary"></div>
     <div class="row" style="margin:14px 0;">
-      <button id="copy">표 복사 (엑셀에 붙여넣기)</button>
-      <button class="primary" id="download">엑셀 파일 내려받기</button>
+      <button class="primary" id="download-edufine">에듀파인 업로드용 (물품내역.xlsx)</button>
+      <button id="download">검토용 보고서 (.xlsx)</button>
+      <button id="copy">표 복사 (붙여넣기)</button>
     </div>
+    <p class="hint" style="margin:-6px 0 4px">에듀파인 업로드용은 「물품내역」 서식 그대로라 내려받아 바로 올릴 수 있습니다. 검토용 보고서는 요약·원문대조까지 담은 확인용입니다.</p>
     <pre class="report" id="report"></pre>
     <div id="errors"></div>
   </div>
@@ -261,6 +263,20 @@ function renderResults(res) {
     errBox.className = ""; errBox.innerHTML = "";
   }
   $("download").disabled = !res.xlsx;
+  $("download-edufine").disabled = !res.edufine;
+}
+
+function downloadBytes(bytes, prefix) {
+  const blob = new Blob([bytes], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const fname = `${prefix}_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.xlsx`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = fname; a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ---------- 복사 / 다운로드 ----------
@@ -271,17 +287,11 @@ $("copy").addEventListener("click", async () => {
 });
 
 $("download").addEventListener("click", () => {
-  if (!lastResult || !lastResult.xlsx) return;
-  const blob = new Blob([lastResult.xlsx], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  const now = new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  const fname = `견적정리_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.xlsx`;
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = fname; a.click();
-  URL.revokeObjectURL(url);
+  if (lastResult && lastResult.xlsx) downloadBytes(lastResult.xlsx, "견적정리");
+});
+
+$("download-edufine").addEventListener("click", () => {
+  if (lastResult && lastResult.edufine) downloadBytes(lastResult.edufine, "물품내역");
 });
 
 initPyodide().catch((e) => { setStatus("초기화 실패: " + e.message, false); console.error(e); });
