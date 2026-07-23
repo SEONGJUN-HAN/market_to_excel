@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오픈마켓 견적서 변환기</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --line: #e3e6ea; --ink: #1f2933;
+    --sub: #66707a; --brand: #2f6fed; --brand-ink: #fff;
+    --ok: #1f7a1f; --bad: #c0392b; --warn-bg: #fff8e6; --code-bg: #f2f4f7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171b; --card: #1c2026; --line: #2c323a; --ink: #e6e9ec;
+      --sub: #9aa4ae; --brand: #4f86f7; --code-bg: #12151a; --warn-bg: #2a2510;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Malgun Gothic", "맑은 고딕", system-ui, -apple-system, sans-serif;
+    line-height: 1.5; font-size: 15px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 18px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .lead { color: var(--sub); margin: 0 0 20px; font-size: 14px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px; margin-bottom: 16px;
+  }
+  label.field { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
+  .hint { color: var(--sub); font-size: 12.5px; margin: 4px 0 0; }
+  input[type="password"], input[type="text"] {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--ink); font-size: 14px;
+  }
+  .drop {
+    border: 2px dashed var(--line); border-radius: 10px; padding: 22px;
+    text-align: center; color: var(--sub); cursor: pointer; transition: .15s;
+    background: var(--bg);
+  }
+  .drop.hover { border-color: var(--brand); color: var(--brand); }
+  .filelist { margin: 10px 0 0; padding: 0; list-style: none; font-size: 13.5px; }
+  .filelist li { padding: 3px 0; color: var(--ink); }
+  .filelist .rm { color: var(--bad); cursor: pointer; margin-left: 8px; font-size: 12px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  button {
+    font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 18px;
+    background: var(--card); color: var(--ink);
+  }
+  button.primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .chk { display: flex; align-items: center; gap: 7px; font-size: 13.5px; color: var(--sub); margin-top: 10px; }
+  .chk input { width: 16px; height: 16px; }
+  #status { font-size: 13.5px; color: var(--sub); margin-top: 12px; min-height: 20px; white-space: pre-wrap; }
+  .spinner {
+    display: inline-block; width: 13px; height: 13px; border: 2px solid var(--line);
+    border-top-color: var(--brand); border-radius: 50%; animation: spin .8s linear infinite;
+    vertical-align: -2px; margin-right: 7px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: right; }
+  th { background: var(--code-bg); }
+  td.l, th.l { text-align: left; }
+  .ok { color: var(--ok); font-weight: 700; }
+  .bad { color: var(--bad); font-weight: 700; }
+  pre.report {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px; font-size: 12.5px; overflow-x: auto; white-space: pre-wrap; margin: 0;
+  }
+  .err { background: var(--warn-bg); border: 1px solid #d9b400; border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-top: 12px; }
+  .hidden { display: none; }
+  a.ghost { color: var(--brand); text-decoration: none; font-size: 13px; }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 8px;
+    font-size: 13.5px; opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  .toast.show { opacity: .95; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>오픈마켓 견적서 변환기</h1>
+  <p class="lead">지마켓·옥션(.xls)과 11번가(PDF) 견적서를 엑셀 표로 정리합니다. 모든 처리는 이 브라우저 안에서만 이뤄집니다 — 파일도 키도 서버로 보내지 않습니다.</p>
+
+  <div class="card">
+    <label class="field">1. 견적서 파일</label>
+    <div class="drop" id="drop">
+      파일을 여기로 끌어다 놓거나 클릭해서 선택하세요<br>
+      <span class="hint">지마켓/옥션 .xls, 11번가 .pdf (여러 개 가능)</span>
+    </div>
+    <input type="file" id="file" class="hidden" multiple accept=".xls,.xlsx,.pdf">
+    <ul class="filelist" id="filelist"></ul>
+  </div>
+
+  <div class="card">
+    <label class="field" for="key">2. Gemini API 키 <span style="font-weight:400;color:var(--sub)">(선택)</span></label>
+    <input type="password" id="key" placeholder="AIza... (없으면 규칙 기반으로 정리)" autocomplete="off">
+    <p class="hint">품명을 더 깔끔하게 정리하려면 본인 Gemini 키를 넣으세요. 키는 이 브라우저에서 구글로 직접 전송되며 서버를 거치지 않습니다. 비워두면 키 없이 규칙 기반으로 정리합니다. <a class="ghost" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">키 발급 →</a></p>
+    <label class="chk"><input type="checkbox" id="remember"> 이 브라우저에 키 기억하기 (본인 PC에서만 권장)</label>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button class="primary" id="run" disabled>변환하기</button>
+      <span id="status"><span class="spinner"></span>준비 중… (처음 한 번은 파이썬 런타임을 내려받아 조금 걸립니다)</span>
+    </div>
+  </div>
+
+  <div class="card hidden" id="results">
+    <label class="field">결과</label>
+    <div id="summary"></div>
+    <div class="row" style="margin:14px 0;">
+      <button id="copy">표 복사 (엑셀에 붙여넣기)</button>
+      <button class="primary" id="download">엑셀 파일 내려받기</button>
+    </div>
+    <pre class="report" id="report"></pre>
+    <div id="errors"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.28.3/full/pyodide.js"></script>
+<script>
+const PYODIDE_INDEX = "https://cdn.jsdelivr.net/pyodide/v0.28.3/full/";
+let pyodide = null;
+let files = [];            // [{name, bytes(Uint8Array)}]
+let lastResult = null;
+
+const $ = (id) => document.getElementById(id);
+const statusEl = $("status"), runBtn = $("run");
+
+function setStatus(text, busy) {
+  statusEl.innerHTML = (busy ? '<span class="spinner"></span>' : "") + text;
+}
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 1600);
+}
+
+// ---------- 파일 선택/드롭 ----------
+const drop = $("drop"), fileInput = $("file");
+drop.addEventListener("click", () => fileInput.click());
+drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("hover"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("hover"));
+drop.addEventListener("drop", (e) => {
+  e.preventDefault(); drop.classList.remove("hover");
+  addFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener("change", () => addFiles(fileInput.files));
+
+async function addFiles(fileList) {
+  for (const f of fileList) {
+    const buf = new Uint8Array(await f.arrayBuffer());
+    files.push({ name: f.name, bytes: buf });
+  }
+  renderFiles();
+}
+function renderFiles() {
+  const ul = $("filelist"); ul.innerHTML = "";
+  files.forEach((f, i) => {
+    const li = document.createElement("li");
+    li.textContent = "📄 " + f.name + "  (" + (f.bytes.length / 1024).toFixed(0) + " KB)";
+    const rm = document.createElement("span");
+    rm.className = "rm"; rm.textContent = "✕ 제거";
+    rm.onclick = () => { files.splice(i, 1); renderFiles(); };
+    li.appendChild(rm); ul.appendChild(li);
+  });
+  updateRunState();
+}
+function updateRunState() {
+  runBtn.disabled = !(pyodide && files.length > 0);
+}
+
+// ---------- 키 기억 ----------
+const keyInput = $("key"), rememberChk = $("remember");
+const savedKey = localStorage.getItem("gemini_key");
+if (savedKey) { keyInput.value = savedKey; rememberChk.checked = true; }
+rememberChk.addEventListener("change", () => {
+  if (!rememberChk.checked) localStorage.removeItem("gemini_key");
+  else if (keyInput.value.trim()) localStorage.setItem("gemini_key", keyInput.value.trim());
+});
+keyInput.addEventListener("input", () => {
+  if (rememberChk.checked) localStorage.setItem("gemini_key", keyInput.value.trim());
+});
+
+// ---------- Pyodide 초기화 ----------
+async function initPyodide() {
+  setStatus("파이썬 런타임 로드 중…", true);
+  pyodide = await loadPyodide({ indexURL: PYODIDE_INDEX });
+  setStatus("필수 패키지 로드 중… (lxml / Pillow / 암호화)", true);
+  await pyodide.loadPackage(["micropip", "lxml", "Pillow", "cryptography"]);
+  setStatus("파이썬 패키지 설치 중… (bs4 / openpyxl / pdfplumber)", true);
+  await pyodide.runPythonAsync(`
+import micropip
+await micropip.install(["beautifulsoup4", "openpyxl", "pdfminer.six"])
+await micropip.install("pdfplumber", deps=False)   # pypdfium2(네이티브) 건너뜀
+`);
+  setStatus("변환기 로드 중…", true);
+  const src = await (await fetch("converter.py")).text();
+  await pyodide.runPythonAsync(src);
+  setStatus("준비 완료. 파일을 넣고 [변환하기]를 누르세요.", false);
+  updateRunState();
+}
+
+// ---------- 변환 실행 ----------
+runBtn.addEventListener("click", async () => {
+  if (!pyodide || files.length === 0) return;
+  runBtn.disabled = true;
+  const key = keyInput.value.trim();
+  const useGemini = key.length > 0;
+  setStatus(useGemini ? "견적서 분석 + Gemini 품명 정리 중…" : "견적서 분석 중…", true);
+
+  try {
+    const jsFiles = files.map((f) => [f.name, f.bytes]);
+    pyodide.globals.set("JS_FILES", pyodide.toPy(jsFiles));
+    pyodide.globals.set("JS_KEY", key);
+    pyodide.globals.set("JS_USE_GEMINI", useGemini);
+    const pyRes = await pyodide.runPythonAsync(
+      "await convert(JS_FILES, JS_KEY, JS_USE_GEMINI)"
+    );
+    const res = pyRes.toJs({ dict_converter: Object.fromEntries });
+    pyRes.destroy();
+    lastResult = res;
+    renderResults(res);
+    setStatus(res.refine_msg || "완료.", false);
+  } catch (e) {
+    setStatus("오류: " + e.message, false);
+    console.error(e);
+  } finally {
+    runBtn.disabled = false;
+  }
+});
+
+function won(n) { return Number(n).toLocaleString("ko-KR") + "원"; }
+
+function renderResults(res) {
+  $("results").classList.remove("hidden");
+
+  // 요약 표
+  let html = '<table><thead><tr><th class="l">몰</th><th class="l">파일</th><th>항목</th><th>상품금액</th><th>배송비</th><th>합계</th><th>검증</th></tr></thead><tbody>';
+  for (const s of res.summary) {
+    html += `<tr><td class="l">${s.mall}</td><td class="l">${s.source}</td><td>${s.items}</td>`
+      + `<td>${won(s.goods)}</td><td>${won(s.shipping)}</td><td>${won(s.total)}</td>`
+      + `<td class="${s.ok ? "ok" : "bad"}">${s.ok ? "일치" : "불일치"}</td></tr>`;
+  }
+  html += "</tbody></table>";
+  $("summary").innerHTML = html;
+
+  $("report").textContent = res.report;
+
+  const errBox = $("errors");
+  if (res.errors && res.errors.length) {
+    errBox.className = "err";
+    errBox.innerHTML = "<b>읽지 못한 파일 / 알림</b><br>" + res.errors.join("<br>");
+  } else {
+    errBox.className = ""; errBox.innerHTML = "";
+  }
+  $("download").disabled = !res.xlsx;
+}
+
+// ---------- 복사 / 다운로드 ----------
+$("copy").addEventListener("click", async () => {
+  if (!lastResult) return;
+  try { await navigator.clipboard.writeText(lastResult.tsv); toast("표를 클립보드에 복사했습니다. 엑셀에서 Ctrl+V"); }
+  catch { toast("복사 실패 — 브라우저 권한을 확인하세요"); }
+});
+
+$("download").addEventListener("click", () => {
+  if (!lastResult || !lastResult.xlsx) return;
+  const blob = new Blob([lastResult.xlsx], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const fname = `견적정리_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.xlsx`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = fname; a.click();
+  URL.revokeObjectURL(url);
+});
+
+initPyodide().catch((e) => { setStatus("초기화 실패: " + e.message, false); console.error(e); });
+</script>
+</body>
+</html>
