@@ -679,7 +679,7 @@ async def gemini_refine(items, api_key, progress=None,
     if state["tok_in"]:
         won = estimate_won(state["tok_in"], state["tok_out"], model)
         msg += (f" 토큰 입력 {state['tok_in']:,} / 출력 {state['tok_out']:,}"
-                f" — 이번 호출 약 {won:.1f}원")
+                f" — 유료 키 기준 약 {won:.1f}원 (무료 티어는 요금 청구 없음)")
     if state["thinking_dropped"]:
         msg += (" ※ 이 모델이 thinking 설정을 거부해 thinking 없이 처리했습니다.")
     if state["retries"] and not state["rate_limited"]:
