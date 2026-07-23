@@ -436,8 +436,10 @@ GEMINI_MODEL = "gemini-flash-lite-latest"
 #
 # Gemini 3.x 는 thinking 을 thinkingBudget 이 아니라 thinkingLevel 로 제어한다.
 #   "minimal" | "low" | "medium" | "high"  (숫자 budget=0 은 400 을 낸다)
-# minimal 이 가장 싸고 빠르다. 빈 문자열/None 이면 thinkingConfig 를 안 보낸다.
-THINKING_LEVEL = "minimal"
+# 기본은 low: minimal(사실상 사고 없음)보다 공문서 정확도가 안전하고,
+# flash-lite 에선 추가 비용이 1원 미만 수준이라 사실상 공짜로 품질을 산다.
+# 빈 문자열/None 이면 thinkingConfig 를 안 보낸다(모델 기본값).
+THINKING_LEVEL = "low"
 
 PROMPT = """너는 학교 회계 담당자가 오픈마켓 견적서를 정리하는 일을 돕는다.
 
