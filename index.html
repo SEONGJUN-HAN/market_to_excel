@@ -160,6 +160,8 @@
     display: grid; place-items: center; font-size: 13px; }
   .rec-tag { font-size: 11px; font-weight: 700; color: var(--brand-2); border: 1px solid var(--brand-2);
     border-radius: 999px; padding: 1px 8px; }
+  .base-tag { font-size: 11px; font-weight: 700; color: var(--sub); border: 1px solid var(--line);
+    border-radius: 999px; padding: 1px 8px; }
   .bm-box { margin: 12px 0 0; padding: 14px 16px; border: 1px solid var(--brand-2);
     border-radius: 10px; background: var(--card); }
   .bm-drag { display: inline-block; padding: 11px 20px; background: var(--brand); color: #fff;
@@ -297,19 +299,19 @@
       <li><b>원인행위(행정직)</b> — 행정실에서 <b>원인행위</b>할 때. 에듀파인 <b>「물품내역」</b> 서식과 검토용 보고서가 나옵니다.</li>
     </ul>
 
-    <h3>1) 물건 담기 → 2) 넣기 → 3) 내려받기</h3>
+    <h3>전체 흐름</h3>
     <div class="flow">
-      <span class="on">쇼핑몰 장바구니에서 살 것 체크</span><i>→</i>
-      <span>여기에 넣기</span><i>→</i>
-      <span>변환</span><i>→</i>
-      <span>엑셀 내려받아 에듀파인에</span>
+      <span><b>①</b> 장바구니에서 살 것 체크</span><i>→</i>
+      <span class="on"><b>②</b> 변환기에 넣기</span><i>→</i>
+      <span><b>③</b> 변환하기</span><i>→</i>
+      <span><b>④</b> 엑셀 내려받아 에듀파인에 파일 업로드</span>
     </div>
 
-    <h3>넣는 방법은 두 가지</h3>
-    <p class="hint" style="margin-top:0">아래 <b>파일 올리기 칸</b>·<b>변환하기</b>·<b>API 키 칸</b>은 <b>품의자</b> 또는 <b>원인행위</b> 탭에 있습니다. 이 사용방법 탭에는 없으니, 위에서 <b>탭을 바꿔</b> 주세요.</p>
+    <h3>② 변환기에 넣기 — 두 가지 방법 중 하나</h3>
+    <p class="hint" style="margin-top:0">위 흐름의 <b>②번(넣기)</b>을 하는 방법입니다. 아래 <b>파일 올리기 칸</b>·<b>변환하기</b>·<b>API 키 칸</b>은 <b>품의자</b> 또는 <b>원인행위</b> 탭에 있습니다. 이 사용방법 탭에는 없으니, 위에서 <b>탭을 바꿔</b> 주세요.</p>
 
     <div class="method">
-      <div class="method-h"><span class="method-n">1</span> 견적서 파일 올리기</div>
+      <div class="method-h"><span class="method-n">1</span> 견적서 파일 올리기 <span class="base-tag">기본</span></div>
       <p style="margin:0">쇼핑몰 장바구니에서 <b>견적서 출력</b>으로 받은 파일(<code>.xls</code>, 11번가는 <code>.pdf</code>)을,
         <b>품의자</b> 또는 <b>원인행위</b> 탭의 <b>파일 올리기 칸</b>에 끌어다 놓습니다. 여러 개 한 번에 됩니다.</p>
     </div>
