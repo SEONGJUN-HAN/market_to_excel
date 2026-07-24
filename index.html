@@ -80,6 +80,9 @@
   .drop:hover { border-color: var(--brand-2); }
   .drop.hover { border-color: var(--brand-2); color: var(--brand-2); background: rgba(29,90,166,.05); }
   .drop b { color: var(--ink); font-weight: 600; }
+  .accum-bar { margin: 12px 0 0; padding: 9px 13px; font-size: 13px; color: var(--ink);
+    background: rgba(29,90,166,.06); border: 1px solid var(--brand-2); border-radius: 8px; }
+  .accum-bar a { margin-left: 6px; }
   .filelist { margin: 12px 0 0; padding: 0; list-style: none; font-size: 13.5px; }
   .filelist li { padding: 8px 12px; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
     border-radius: 8px; margin-bottom: 6px; display: flex; align-items: center; }
@@ -214,6 +217,7 @@
       <span class="hint">지마켓 · 옥션 (.xls) / 11번가 (.pdf) — 여러 개 동시 가능</span>
     </div>
     <input type="file" id="file" class="hidden" multiple accept=".xls,.xlsx,.pdf">
+    <div class="accum-bar hidden" id="accum-bar"></div>
     <ul class="filelist" id="filelist"></ul>
   </div>
 
@@ -296,7 +300,7 @@
 
     <h3>넣는 방법은 두 가지</h3>
     <ol>
-      <li><b>장바구니 북마클릿(원클릭) — 권장</b> · 장바구니에서 살 것만 체크하고 북마크를 누르면, 이 화면이 열리며 자동으로 변환까지 됩니다. <b>장바구니에 담은 순서 그대로</b> 정리됩니다(견적서 출력은 순서가 섞입니다). 설치는 아래를 보세요.</li>
+      <li><b>장바구니 북마클릿(원클릭) — 권장</b> · 장바구니에서 살 것만 체크하고 북마크를 누르면, 이 화면이 열리며 자동으로 변환까지 됩니다. <b>장바구니에 담은 순서 그대로</b> 정리됩니다(견적서 출력은 순서가 섞입니다). <b>여러 몰을 이어서 담을 수 있습니다</b> — 지마켓에서 누르고, 옥션에서 또 누르면 한 화면에 쌓여 한 번에 변환됩니다. 설치는 아래를 보세요.</li>
       <li><b>견적서 파일 올리기</b> · 쇼핑몰 장바구니에서 <b>견적서 출력</b>으로 받은 파일(<code>.xls</code>, 11번가는 <code>.pdf</code>)을 위 <b>①</b> 칸에 끌어다 놓습니다. 여러 개 한 번에 됩니다.</li>
     </ol>
 
@@ -608,21 +612,80 @@ async function unpack(payload) {
   return new Uint8Array(await new Response(ds.readable).arrayBuffer());
 }
 
+// 여러 몰을 누적한다. 북마클릿을 누를 때마다 이 탭(또는 새 탭)이 새로고침되며
+// 담긴 몰이 localStorage 에 쌓인다. localStorage 는 변환기 출처(origin)의 모든 탭이
+// 공유하므로, named target 재사용이 안 돼 새 탭이 열려도 누적이 이어진다.
+const CART_KEY = "cart_accum_v1";
+const CART_FRESH_MS = 45 * 60 * 1000;   // 마지막 담기로부터 45분 지나면 새 품의로 간주
+
+function bytesToB64(u8) {
+  let s = "";
+  for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
+  return btoa(s);
+}
+function b64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function readAccum() {
+  try {
+    const o = JSON.parse(localStorage.getItem(CART_KEY) || "null");
+    if (!o || !Array.isArray(o.items)) return [];
+    if (Date.now() - (o.ts || 0) > CART_FRESH_MS) { localStorage.removeItem(CART_KEY); return []; }
+    return o.items;
+  } catch { return []; }
+}
+function writeAccum(items) {
+  localStorage.setItem(CART_KEY, JSON.stringify({ ts: Date.now(), items }));
+}
+function clearAccum() {
+  localStorage.removeItem(CART_KEY);
+  files = [];
+  renderFiles();
+  $("results").classList.add("hidden");
+  renderAccumBar();
+  setStatus("담은 장바구니를 비웠습니다. 새로 담아 주세요.", false);
+}
+
+// 담긴 몰을 파일 목록 위에 요약해 보여주고, 비우기 버튼을 단다.
+function renderAccumBar() {
+  const bar = $("accum-bar");
+  const items = readAccum();
+  if (!items.length) { bar.classList.add("hidden"); bar.innerHTML = ""; return; }
+  bar.classList.remove("hidden");
+  const malls = items.map((it) => it.mall || "장바구니").join(" · ");
+  bar.innerHTML = `🛒 장바구니에서 담김: <b>${malls}</b> (${items.length}개 몰) `
+    + `<a class="ghost" href="#" id="accum-clear">비우고 새로 시작</a>`;
+  $("accum-clear").addEventListener("click", (e) => { e.preventDefault(); clearAccum(); });
+}
+
+// localStorage 에 쌓인 몰들을 files 로 옮긴다(파일 업로드와 동일 취급).
+function loadAccumIntoFiles() {
+  files = readAccum().map((it) => ({ name: it.name, bytes: b64ToBytes(it.b64) }));
+  renderFiles();
+  renderAccumBar();
+}
+
 async function loadFromHash() {
-  const m = location.hash.match(/^#cart=(.+)$/);
-  if (!m) return false;
+  const m = location.hash.match(/^#cart=([^&]+)(?:&mall=([^&]*))?/);
+  if (!m) { renderAccumBar(); return false; }
   // 주소창을 정리해 새로고침 때 같은 데이터가 또 올라가지 않게 한다.
   history.replaceState(null, "", location.pathname + location.search);
   try {
     const bytes = await unpack(m[1]);
+    const mall = m[2] ? decodeURIComponent(m[2]) : "장바구니";
     const now = new Date();
     const pad = (n) => String(n).padStart(2, "0");
-    files.push({
-      name: `장바구니_견적_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}.xls`,
-      bytes,
-    });
-    renderFiles();
-    toast("장바구니에서 견적서를 받았습니다");
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+
+    const items = readAccum().filter((it) => it.mall !== mall);   // 같은 몰이면 갱신
+    items.push({ mall, name: `${mall}_장바구니_견적_${stamp}.xls`, b64: bytesToB64(bytes) });
+    writeAccum(items);
+
+    loadAccumIntoFiles();
+    toast(`${mall} 장바구니를 담았습니다 (담긴 몰 ${items.length}개)`);
     return true;
   } catch (e) {
     console.error(e);
@@ -634,7 +697,7 @@ async function loadFromHash() {
 (async () => {
   const fromCart = await loadFromHash();
   await initPyodide();
-  // 장바구니에서 바로 넘어온 경우엔 누를 것 없이 변환까지 이어간다.
+  // 장바구니에서 넘어온 경우엔 누를 것 없이 담긴 몰 전부를 변환한다.
   if (fromCart && files.length > 0) runBtn.click();
 })().catch((e) => { setStatus("초기화 실패: " + e.message, false); console.error(e); });
 </script>
