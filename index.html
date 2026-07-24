@@ -153,8 +153,15 @@
     padding: 5px 10px; font-size: 12.5px; color: var(--sub); }
   .flow span.on { background: rgba(29,90,166,.08); border-color: var(--brand-2); color: var(--brand); font-weight: 700; }
   .flow i { color: var(--sub); font-style: normal; }
-  .bm-box { margin: 16px 0 6px; padding: 16px 18px; border: 1px solid var(--brand-2);
-    border-radius: 10px; background: rgba(29,90,166,.05); }
+  .method { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 0 0 12px; }
+  .method.rec { border-color: var(--brand-2); background: rgba(29,90,166,.04); }
+  .method-h { font-weight: 700; font-size: 14.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .method-n { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--brand); color: #fff;
+    display: grid; place-items: center; font-size: 13px; }
+  .rec-tag { font-size: 11px; font-weight: 700; color: var(--brand-2); border: 1px solid var(--brand-2);
+    border-radius: 999px; padding: 1px 8px; }
+  .bm-box { margin: 12px 0 0; padding: 14px 16px; border: 1px solid var(--brand-2);
+    border-radius: 10px; background: var(--card); }
   .bm-drag { display: inline-block; padding: 11px 20px; background: var(--brand); color: #fff;
     border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14.5px; cursor: grab; }
   .bm-drag:hover { background: var(--brand-2); }
@@ -299,25 +306,42 @@
     </div>
 
     <h3>넣는 방법은 두 가지</h3>
-    <ol>
-      <li><b>장바구니 북마클릿(원클릭) — 권장</b> · 장바구니에서 살 것만 체크하고 북마크를 누르면, 이 화면에 <b>담깁니다</b>. <b>여러 몰을 이어서 담을 수 있습니다</b> — 지마켓에서 누르고, 옥션에서 또 누르면 한 화면에 쌓입니다. <b>다 담은 뒤 [변환하기]를 한 번만</b> 누르세요. <b>장바구니에 담은 순서 그대로</b> 정리됩니다(견적서 출력은 순서가 섞입니다). 설치는 아래를 보세요.</li>
-      <li><b>견적서 파일 올리기</b> · 쇼핑몰 장바구니에서 <b>견적서 출력</b>으로 받은 파일(<code>.xls</code>, 11번가는 <code>.pdf</code>)을 위 <b>①</b> 칸에 끌어다 놓습니다. 여러 개 한 번에 됩니다.</li>
-    </ol>
+    <p class="hint" style="margin-top:0">아래 <b>파일 올리기 칸</b>·<b>변환하기</b>·<b>API 키 칸</b>은 <b>품의자</b> 또는 <b>원인행위</b> 탭에 있습니다. 이 사용방법 탭에는 없으니, 위에서 <b>탭을 바꿔</b> 주세요.</p>
 
-    <div class="bm-box">
-      <h3 style="margin-top:2px">북마클릿 설치 (한 번만)</h3>
-      <p>아래 버튼을 브라우저 <b>북마크바로 끌어다 놓으세요.</b> (북마크바가 안 보이면 <code>Ctrl+Shift+B</code>)</p>
-      <p><a class="bm-drag" id="bm-btn" href="#" draggable="true">🧾 장바구니 → 견적 변환</a>
-         <span class="hint" id="bm-status" style="display:inline; margin-left:8px">불러오는 중…</span></p>
-      <p style="margin-bottom:6px">이 북마클릿 하나로 <b>품의자·원인행위 모두</b> 씁니다 — 누르면 품의자 화면으로 열리고, 행정직이면 <b>원인행위</b> 탭으로 바꾸면 됩니다.</p>
-      <p style="margin-bottom:0">지마켓·옥션·11번가 장바구니에서 작동합니다. 팝업이 막히면 견적서 파일로 받아 위 <b>①</b> 칸에 올려도 동일합니다.
-         <a class="ghost" href="#" id="bm-copy">드래그가 안 되면 · 코드 복사</a></p>
-      <textarea id="bm-code" readonly style="display:none; width:100%; height:88px; margin-top:8px;
-        font:12px/1.4 Consolas,monospace; border:1px solid var(--line); border-radius:6px; padding:8px; background:var(--code-bg); color:var(--ink);"></textarea>
+    <div class="method">
+      <div class="method-h"><span class="method-n">1</span> 견적서 파일 올리기</div>
+      <p style="margin:0">쇼핑몰 장바구니에서 <b>견적서 출력</b>으로 받은 파일(<code>.xls</code>, 11번가는 <code>.pdf</code>)을,
+        <b>품의자</b> 또는 <b>원인행위</b> 탭의 <b>파일 올리기 칸</b>에 끌어다 놓습니다. 여러 개 한 번에 됩니다.</p>
+    </div>
+
+    <div class="method rec">
+      <div class="method-h"><span class="method-n">2</span> 장바구니 북마클릿 (원클릭) <span class="rec-tag">권장</span></div>
+      <p>장바구니에서 살 것만 체크하고 북마크를 누르면 변환기 화면에 <b>담깁니다</b>.
+        여러 몰을 이어서 담을 수 있고(지마켓에서 누르고 옥션에서 또 누르면 한 화면에 쌓입니다),
+        <b>다 담은 뒤 [변환하기]를 한 번만</b> 누릅니다. <b>장바구니에 담은 순서 그대로</b> 정리됩니다(견적서 출력은 순서가 섞입니다).</p>
+
+      <div class="bm-box">
+        <p style="margin:0 0 4px"><b>설치 (한 번만)</b> — 아래 버튼을 브라우저 <b>북마크바로 끌어다 놓으세요.</b> (북마크바가 안 보이면 <code>Ctrl+Shift+B</code>)</p>
+        <p style="margin:10px 0"><a class="bm-drag" id="bm-btn" href="#" draggable="true">🧾 장바구니 → 견적 변환</a>
+           <span class="hint" id="bm-status" style="display:inline; margin-left:8px">불러오는 중…</span></p>
+        <p style="margin:0 0 8px">이 북마클릿 하나로 <b>품의자·원인행위 모두</b> 씁니다 — 누르면 품의자 화면으로 열리고, 행정직이면 <b>원인행위</b> 탭으로 바꾸면 됩니다. 지마켓·옥션·11번가 장바구니에서 작동합니다.</p>
+        <p style="margin:0"><a class="ghost" href="#" id="bm-copy">드래그가 안 되면 · 코드 복사</a></p>
+        <div id="bm-copy-help" class="hidden" style="margin-top:8px">
+          <p class="hint" style="margin:0 0 6px">복사한 코드로 북마크를 직접 만드는 방법:</p>
+          <ol style="margin:0 0 8px">
+            <li>아래 코드는 <b>이미 복사</b>되었습니다.</li>
+            <li>북마크바 빈 곳을 <b>우클릭 → '페이지 추가'</b>(브라우저에 따라 '새 북마크')</li>
+            <li>이름은 아무거나, <b>URL(주소) 칸에 붙여넣기</b> → 저장</li>
+          </ol>
+          <textarea id="bm-code" readonly style="width:100%; height:82px;
+            font:12px/1.4 Consolas,monospace; border:1px solid var(--line); border-radius:6px; padding:8px; background:var(--code-bg); color:var(--ink);"></textarea>
+        </div>
+      </div>
+      <p class="hint" style="margin:8px 0 0">팝업이 막히면 견적서 파일로 받아, <b>품의자/원인행위 탭의 파일 올리기 칸</b>에 올려도 동일합니다.</p>
     </div>
 
     <h3>Gemini 품명 정리 (선택)</h3>
-    <p>본인 Gemini API 키를 <b>②</b> 칸에 넣으면 품명·규격을 더 깔끔하게 다듬습니다. 키는 이 브라우저에서 구글로 직접 전송되며 서버를 거치지 않습니다. 비워 두면 규칙 기반으로만 정리합니다.
+    <p>본인 Gemini API 키를 <b>품의자/원인행위 탭의 API 키 칸</b>에 넣으면 품명·규격을 더 깔끔하게 다듬습니다. 키는 이 브라우저에서 구글로 직접 전송되며 서버를 거치지 않습니다. 비워 두면 규칙 기반으로만 정리합니다.
        <a class="ghost" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">키 발급 →</a></p>
 
     <h3>내려받는 파일</h3>
@@ -561,11 +585,15 @@ for (const t of ["teacher", "admin", "guide"]) {
 $("bm-btn").addEventListener("click", (e) => { e.preventDefault(); toast("이 버튼은 북마크바로 '드래그'하세요. 실행은 쇼핑몰 장바구니에서."); });
 $("bm-copy").addEventListener("click", (e) => {
   e.preventDefault();
-  const ta = $("bm-code");
-  ta.style.display = ta.style.display === "none" ? "block" : "none";
-  if (ta.style.display === "block") {
+  const help = $("bm-copy-help");
+  const show = help.classList.contains("hidden");
+  help.classList.toggle("hidden", !show);
+  if (show) {
+    const ta = $("bm-code");
     ta.select();
-    navigator.clipboard.writeText(ta.value).then(() => toast("북마클릿 코드를 복사했습니다")).catch(() => {});
+    navigator.clipboard.writeText(ta.value)
+      .then(() => toast("코드를 복사했습니다. 새 북마크의 URL 칸에 붙여넣으세요"))
+      .catch(() => toast("복사 실패 — 아래 상자에서 직접 복사해 주세요"));
   }
 });
 
