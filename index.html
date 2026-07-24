@@ -127,6 +127,29 @@
   }
   .err { background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 8px; padding: 11px 14px; font-size: 13px; margin-top: 14px; }
   .hidden { display: none; }
+  /* ---- 탭 ---- */
+  .tabs { display: flex; gap: 4px; margin: 0 0 20px; border-bottom: 2px solid var(--line); }
+  .tab { flex: 0 0 auto; border: 1px solid var(--line); border-bottom: none;
+    border-radius: 9px 9px 0 0; background: var(--bg); color: var(--sub);
+    font-family: inherit; font-size: 14px; font-weight: 700; padding: 11px 18px; margin-bottom: -2px;
+    cursor: pointer; transition: .12s; }
+  .tab:hover:not(.active) { color: var(--brand-2); }
+  .tab.active { background: var(--card); color: var(--brand); border-color: var(--line);
+    border-bottom: 2px solid var(--card); }
+  .tab .t2 { display: block; font-weight: 400; font-size: 11px; color: var(--sub); margin-top: 1px; }
+  .tab.active .t2 { color: var(--brand-2); }
+  /* ---- 사용방법 ---- */
+  .guide h3 { font-size: 15px; margin: 22px 0 8px; color: var(--ink); letter-spacing: -.2px; }
+  .guide h3:first-child { margin-top: 2px; }
+  .guide ol, .guide ul { margin: 0 0 10px; padding-left: 20px; }
+  .guide li { margin-bottom: 6px; font-size: 13.5px; }
+  .guide p { font-size: 13.5px; margin: 0 0 10px; }
+  .guide code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font-size: 12.5px; }
+  .flow { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 4px 0 14px; }
+  .flow span { background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+    padding: 5px 10px; font-size: 12.5px; color: var(--sub); }
+  .flow span.on { background: rgba(29,90,166,.08); border-color: var(--brand-2); color: var(--brand); font-weight: 700; }
+  .flow i { color: var(--sub); font-style: normal; }
   a.ghost { color: var(--brand-2); text-decoration: none; font-size: 13px; font-weight: 600; }
   a.ghost:hover { text-decoration: underline; }
   .divider { height: 1px; background: var(--line); margin: 16px 0; }
@@ -161,16 +184,24 @@
       </svg>
     </span>
     <div>
-      <h1>오픈마켓 견적서 변환기</h1>
-      <p class="sub">지마켓 · 옥션 · 11번가 견적서를 에듀파인 물품내역 서식으로 정리</p>
+      <h1>오픈마켓 장바구니·견적서 변환기</h1>
+      <p class="sub">지마켓 · 옥션 · 11번가 → 에듀파인 서식으로 정리 · 교원 품의 & 행정직 원인행위</p>
     </div>
     <span class="mast-tag">브라우저 내 처리 · 무설치</span>
   </div>
 </header>
 
 <div class="wrap">
-  <p class="lead">업로드한 견적서는 <b>이 브라우저 안에서만</b> 분석됩니다. 파일도 API 키도 별도 서버로 전송·저장되지 않습니다. 결과는 에듀파인 업로드용 서식과 검토용 보고서로 내려받을 수 있습니다.</p>
+  <div class="tabs" role="tablist">
+    <button class="tab active" id="tab-teacher" data-tab="teacher" role="tab">품의자<span class="t2">교원 · 품의</span></button>
+    <button class="tab" id="tab-admin" data-tab="admin" role="tab">원인행위<span class="t2">행정직</span></button>
+    <button class="tab" id="tab-guide" data-tab="guide" role="tab">사용방법<span class="t2">처음이면 여기</span></button>
+  </div>
 
+  <p class="lead" id="lead-teacher">선생님이 <b>품의</b>할 때 쓰는 화면입니다. 장바구니(또는 견적서)를 넣으면 에듀파인 <b>품의용 「품목내역」</b> 서식과, 행정실에 넘길 정리본을 만들어 줍니다. 모든 처리는 <b>이 브라우저 안에서만</b> 이뤄지고 파일·API 키는 서버로 전송되지 않습니다.</p>
+  <p class="lead hidden" id="lead-admin">행정직이 <b>원인행위</b>할 때 쓰는 화면입니다. 견적서를 넣으면 에듀파인 <b>「물품내역」</b> 업로드 서식과 검토용 보고서(요약·원문대조)를 만들어 줍니다. 모든 처리는 <b>이 브라우저 안에서만</b> 이뤄집니다.</p>
+
+  <div id="pane-work">
   <div class="card">
     <div class="cardhead"><span class="badge">1</span><span class="cardtitle">견적서 파일 업로드</span></div>
     <div class="drop" id="drop">
@@ -217,15 +248,66 @@
   <div class="card hidden" id="results">
     <div class="cardhead"><span class="badge">✓</span><span class="cardtitle">변환 결과</span></div>
     <div id="summary"></div>
-    <div class="row" style="margin:16px 0 0;">
+
+    <div class="row" id="dl-teacher" style="margin:16px 0 0;">
+      <button class="primary" id="download-pumui">에듀파인 품의용 (품목내역.xlsx)</button>
+      <button id="download-handoff">행정실 넘기기용 (.xlsx)</button>
+      <button id="copy-teacher">표 복사</button>
+    </div>
+    <p class="hint" id="hint-teacher">품의용은 「품목내역」 서식(내용·규격·단위·수량·예상단가)이라 에듀파인 품의에 바로 올립니다. 예상단가는 올림 처리되어, 저장하면 예상금액이 실결제에 맞게 채워집니다. 행정실 넘기기용은 몰·품목·수량·금액에 더해 <b>비고에 원본 장바구니 품명·판매자</b>를 담아, 같은 상품을 다시 담기 쉽게 한 정리본입니다.</p>
+
+    <div class="row hidden" id="dl-admin" style="margin:16px 0 0;">
       <button class="primary" id="download-edufine">에듀파인 업로드용 (물품내역.xlsx)</button>
       <button id="download">검토용 보고서 (.xlsx)</button>
-      <button id="copy">표 복사 (붙여넣기)</button>
+      <button id="copy">표 복사</button>
     </div>
-    <p class="hint">에듀파인 업로드용은 「물품내역」 서식 그대로라 내려받아 바로 올릴 수 있습니다. 검토용 보고서는 요약·원문대조까지 담은 확인용입니다.</p>
+    <p class="hint hidden" id="hint-admin">에듀파인 업로드용은 「물품내역」 서식 그대로라 내려받아 바로 올릴 수 있습니다. 검토용 보고서는 요약·원문대조까지 담은 확인용입니다.</p>
     <div class="divider"></div>
     <pre class="report" id="report"></pre>
     <div id="errors"></div>
+  </div>
+  </div><!-- /#pane-work -->
+
+  <div id="pane-guide" class="card guide hidden">
+    <div class="cardhead"><span class="badge">?</span><span class="cardtitle">사용방법</span></div>
+
+    <h3>이 도구는 무엇을 하나요?</h3>
+    <p>지마켓·옥션·11번가에서 담은 물건을, <b>에듀파인에 올릴 수 있는 엑셀</b>로 자동 정리합니다.
+       품명이 광고 문구로 길게 늘어진 것도 규격·수량·금액을 맞춰 깔끔하게 만들어 줍니다.</p>
+
+    <h3>누가 쓰나요? — 위 탭을 고르세요</h3>
+    <ul>
+      <li><b>품의자(교원)</b> — 선생님이 물건을 사달라고 <b>품의</b>할 때. 에듀파인 <b>품의용 「품목내역」</b> 서식이 나옵니다.</li>
+      <li><b>원인행위(행정직)</b> — 행정실에서 <b>원인행위</b>할 때. 에듀파인 <b>「물품내역」</b> 서식과 검토용 보고서가 나옵니다.</li>
+    </ul>
+
+    <h3>1) 물건 담기 → 2) 넣기 → 3) 내려받기</h3>
+    <div class="flow">
+      <span class="on">쇼핑몰 장바구니에서 살 것 체크</span><i>→</i>
+      <span>여기에 넣기</span><i>→</i>
+      <span>변환</span><i>→</i>
+      <span>엑셀 내려받아 에듀파인에</span>
+    </div>
+
+    <h3>넣는 방법은 두 가지</h3>
+    <ol>
+      <li><b>견적서 파일 올리기</b> — 쇼핑몰 장바구니에서 <b>견적서 출력</b>으로 받은 파일(<code>.xls</code>, 11번가는 <code>.pdf</code>)을 위 <b>①</b> 칸에 끌어다 놓습니다. 여러 개 한 번에 됩니다.</li>
+      <li><b>장바구니 북마클릿(원클릭)</b> — 장바구니에서 체크만 하고 북마크를 누르면, 이 화면이 열리며 자동으로 변환까지 됩니다. 설치 방법은 <b>별도 안내</b>를 참고하세요. <span class="hint" style="display:inline">(팝업이 막히면 파일로 받아 위 ① 칸에 올려도 동일합니다.)</span></li>
+    </ol>
+
+    <h3>Gemini 품명 정리 (선택)</h3>
+    <p>본인 Gemini API 키를 <b>②</b> 칸에 넣으면 품명·규격을 더 깔끔하게 다듬습니다. 키는 이 브라우저에서 구글로 직접 전송되며 서버를 거치지 않습니다. 비워 두면 규칙 기반으로만 정리합니다.
+       <a class="ghost" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">키 발급 →</a></p>
+
+    <h3>내려받는 파일</h3>
+    <ul>
+      <li><b>품의자</b> · 에듀파인 품의용(품목내역) + 행정실 넘기기용(비고에 원본 장바구니 품명·판매자 → 같은 상품 다시 담기 쉬움)</li>
+      <li><b>원인행위</b> · 에듀파인 물품내역 + 검토용 보고서(요약·원문대조)</li>
+    </ul>
+
+    <h3>안전한가요?</h3>
+    <p>파일 분석과 엑셀 생성은 모두 <b>사용자 브라우저 안(WebAssembly)</b>에서 이뤄집니다. 견적서 파일과 API 키는 외부 서버로 전송·저장되지 않습니다.
+       정리된 품명·규격은 가독성을 위해 재작성된 값이므로, 공문서 반영 전 검토용 보고서의 <b>원문대조</b>로 확인하시길 권합니다.</p>
   </div>
 </div>
 
@@ -397,6 +479,8 @@ function renderResults(res) {
   }
   $("download").disabled = !res.xlsx;
   $("download-edufine").disabled = !res.edufine;
+  $("download-pumui").disabled = !res.edufine_pumui;
+  $("download-handoff").disabled = !res.handoff;
 }
 
 function downloadBytes(bytes, prefix) {
@@ -412,19 +496,51 @@ function downloadBytes(bytes, prefix) {
   URL.revokeObjectURL(url);
 }
 
+// ---------- 탭 전환 ----------
+// 품의자/원인행위는 입력·변환을 공유하고, 내려받기 버튼과 안내 문구만 바뀐다.
+// 사용방법 탭은 작업 화면을 숨기고 안내만 보여준다.
+let audience = "teacher";   // teacher | admin
+function showTab(tab) {
+  for (const t of ["teacher", "admin", "guide"]) {
+    $("tab-" + t).classList.toggle("active", t === tab);
+  }
+  const work = tab !== "guide";
+  $("pane-work").classList.toggle("hidden", !work);
+  $("pane-guide").classList.toggle("hidden", work);
+  if (work) {
+    audience = tab;
+    $("lead-teacher").classList.toggle("hidden", tab !== "teacher");
+    $("lead-admin").classList.toggle("hidden", tab !== "admin");
+    $("dl-teacher").classList.toggle("hidden", tab !== "teacher");
+    $("dl-admin").classList.toggle("hidden", tab !== "admin");
+    $("hint-teacher").classList.toggle("hidden", tab !== "teacher");
+    $("hint-admin").classList.toggle("hidden", tab !== "admin");
+  }
+}
+for (const t of ["teacher", "admin", "guide"]) {
+  $("tab-" + t).addEventListener("click", () => showTab(t));
+}
+
 // ---------- 복사 / 다운로드 ----------
-$("copy").addEventListener("click", async () => {
+async function copyTsv() {
   if (!lastResult) return;
   try { await navigator.clipboard.writeText(lastResult.tsv); toast("표를 클립보드에 복사했습니다. 엑셀에서 Ctrl+V"); }
   catch { toast("복사 실패 — 브라우저 권한을 확인하세요"); }
-});
+}
+$("copy").addEventListener("click", copyTsv);
+$("copy-teacher").addEventListener("click", copyTsv);
 
 $("download").addEventListener("click", () => {
   if (lastResult && lastResult.xlsx) downloadBytes(lastResult.xlsx, "견적정리");
 });
-
 $("download-edufine").addEventListener("click", () => {
   if (lastResult && lastResult.edufine) downloadBytes(lastResult.edufine, "물품내역");
+});
+$("download-pumui").addEventListener("click", () => {
+  if (lastResult && lastResult.edufine_pumui) downloadBytes(lastResult.edufine_pumui, "품목내역");
+});
+$("download-handoff").addEventListener("click", () => {
+  if (lastResult && lastResult.handoff) downloadBytes(lastResult.handoff, "행정실_넘기기");
 });
 
 // ---------- 장바구니 북마클릿에서 넘어온 견적서 받기 ----------

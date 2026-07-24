@@ -19,6 +19,7 @@ quote_to_excel.py 의 파싱·정리·엑셀 로직을 그대로 옮기되, 브�
 import io
 import re
 import json
+import math
 import asyncio
 import datetime
 from dataclasses import dataclass, field
@@ -985,6 +986,208 @@ def write_edufine_xlsx(rows):
     return buf.getvalue()
 
 
+# ---------------------------------------------------------------- 교원 품의용 서식
+# 교원(사업담당자)이 품의할 때 올리는 '품목내역(통합)' 서식에 맞춘다.
+#   시트명 '품목내역', 열: 내용 · 규격 · 단위 · 수량 · 예상단가  (금액/용도 칸 없음)
+# 품의는 예상치라 예상금액 칸이 없다. 에듀파인이 예상금액 = 예상단가 × 수량 으로 재계산하므로,
+# 예상단가는 금액÷수량을 소수 셋째 자리에서 '올림'해 2자리로 둔다. 이러면 예상단가×수량이
+# 실결제 이상이 되어, 에듀파인에서 저장하면 예상금액이 실결제에 맞게 채워진다.
+
+PUMUI_HEADER = ["내용", "규격", "단위", "수량", "예상단가"]
+
+
+def ceil_unit_price(amount, qty):
+    if not qty:
+        return 0
+    c = math.ceil(amount / qty * 100) / 100
+    return int(c) if float(c).is_integer() else c
+
+
+def write_edufine_pumui_xlsx(rows):
+    """build_rows() 결과를 교원 품의용 '품목내역' 서식(.xlsx)으로 만든다."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "품목내역"
+
+    bold = Font(bold=True)
+    center = Alignment(horizontal="center", vertical="center")
+    money = "#,##0.##"
+
+    for c, h in enumerate(PUMUI_HEADER, start=1):
+        cell = ws.cell(row=1, column=c, value=h)
+        cell.font = bold
+        cell.alignment = center
+
+    r = 1
+    for row in rows:
+        r += 1
+        name, spec, _unitp, qty, amount, _note = row
+        ws.cell(row=r, column=1, value=name)                                   # 내용
+        ws.cell(row=r, column=2, value=spec)                                   # 규격
+        ws.cell(row=r, column=3, value="개")                                   # 단위
+        ws.cell(row=r, column=4, value=qty)                                    # 수량
+        ws.cell(row=r, column=5,                                               # 예상단가(올림)
+                value=ceil_unit_price(amount, qty)).number_format = money
+
+    for col, w in zip("ABCDE", (44, 30, 7, 6, 12)):
+        ws.column_dimensions[col].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+# ---------------------------------------------------------------- 행정실 넘기기용
+# 행정실(원인행위자)이 같은 상품을 장바구니에 다시 담기 쉽도록 만든 파일.
+#   시트1 '내역' : 몰 · 품목 · 규격 · 수량 · 단가 · 금액 · 비고
+#                 비고에 원본 장바구니 품명·옵션·판매자를 담아 검색에 쓰게 한다.
+#   시트2 '요약' : 몰별 소계·합계·검증
+# 금액은 실결제 그대로, 단가 = 금액÷수량(나눠떨어지지 않으면 소수).
+
+def _handoff_bigo(it):
+    parts = [it.raw_name]
+    if it.raw_spec and it.raw_spec != it.raw_name:
+        parts.append(it.raw_spec)
+    bigo = " / ".join(p for p in parts if p)
+    if it.note:
+        bigo = (bigo + "  · 판매자 " + it.note) if bigo else ("판매자 " + it.note)
+    return bigo
+
+
+def write_handoff_xlsx(sheets, refine_msg=""):
+    """행정실 넘기기용 .xlsx (내역 + 요약)."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    thin = Side(style="thin", color="C9D2DE")
+    box = Border(left=thin, right=thin, top=thin, bottom=thin)
+    head_fill = PatternFill("solid", fgColor="1D5AA6")
+    ship_fill = PatternFill("solid", fgColor="FFF2CC")
+    title_font = Font(name="맑은 고딕", size=14, bold=True)
+    head_font = Font(name="맑은 고딕", size=10, bold=True, color="FFFFFF")
+    body_font = Font(name="맑은 고딕", size=10)
+    money = "#,##0"
+
+    wb = Workbook()
+
+    # ---------- 시트 1: 내역
+    ws = wb.active
+    ws.title = "내역"
+    ws["A1"] = "장바구니 선택 내역 (행정실 전달용)"
+    ws["A1"].font = title_font
+    ws.merge_cells("A1:G1")
+    ws["A2"] = f"작성일 {datetime.date.today():%Y-%m-%d}"
+    ws["A2"].font = Font(name="맑은 고딕", size=9, color="808080")
+    ws.merge_cells("A2:G2")
+
+    hdr = ["몰", "품목", "규격", "수량", "단가", "금액", "비고"]
+    r = 4
+    for c, h in enumerate(hdr, start=1):
+        cell = ws.cell(row=r, column=c, value=h)
+        cell.font = head_font
+        cell.fill = head_fill
+        cell.border = box
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    first = r + 1
+    for s in order_sheets(sheets):
+        for it in s.items:
+            r += 1
+            vals = [it.mall, it.name, it.spec, it.qty,
+                    unit_price(it.amount, it.qty), it.amount, _handoff_bigo(it)]
+            for c, v in enumerate(vals, start=1):
+                cell = ws.cell(row=r, column=c, value=v)
+                cell.font = body_font
+                cell.border = box
+                if c in (4, 5, 6):
+                    cell.number_format = money
+                    cell.alignment = Alignment(horizontal="right")
+                else:
+                    cell.alignment = Alignment(horizontal="left", vertical="center",
+                                               wrap_text=(c in (2, 3, 7)))
+        if s.shipping:
+            r += 1
+            vals = [f"{s.mall} 배송비", "", "", 1, s.shipping, s.shipping, ""]
+            for c, v in enumerate(vals, start=1):
+                cell = ws.cell(row=r, column=c, value=v)
+                cell.font = Font(name="맑은 고딕", size=10, bold=True)
+                cell.fill = ship_fill
+                cell.border = box
+                if c in (4, 5, 6):
+                    cell.number_format = money
+                    cell.alignment = Alignment(horizontal="right")
+    last = r
+
+    r += 1
+    ws.cell(row=r, column=1, value="합계").font = Font(name="맑은 고딕", size=10, bold=True)
+    tcell = ws.cell(row=r, column=6, value=f"=SUM(F{first}:F{last})")
+    tcell.font = Font(name="맑은 고딕", size=10, bold=True)
+    tcell.number_format = money
+    for c in range(1, 8):
+        ws.cell(row=r, column=c).border = box
+
+    for col, w in zip("ABCDEFG", (8, 40, 26, 6, 11, 13, 52)):
+        ws.column_dimensions[col].width = w
+    ws.freeze_panes = "A5"
+    ws.auto_filter.ref = f"A4:G{last}"
+
+    # ---------- 시트 2: 요약
+    s2 = wb.create_sheet("요약")
+    s2["A1"] = "몰별 요약"
+    s2["A1"].font = title_font
+    s2.merge_cells("A1:F1")
+
+    hdr2 = ["몰", "항목수", "상품금액", "배송비", "합계", "검증"]
+    for c, h in enumerate(hdr2, start=1):
+        cell = s2.cell(row=3, column=c, value=h)
+        cell.font = head_font
+        cell.fill = head_fill
+        cell.border = box
+        cell.alignment = Alignment(horizontal="center")
+
+    r2 = 3
+    for s in order_sheets(sheets):
+        r2 += 1
+        goods = sum(i.amount for i in s.items)
+        total = goods + s.shipping
+        ok = (s.stated_total == 0) or (total == s.stated_total)
+        vals = [s.mall, len(s.items), goods, s.shipping, total,
+                "일치" if ok else "불일치"]
+        for c, v in enumerate(vals, start=1):
+            cell = s2.cell(row=r2, column=c, value=v)
+            cell.font = body_font
+            cell.border = box
+            if c in (3, 4, 5):
+                cell.number_format = money
+        vcell = s2.cell(row=r2, column=6)
+        vcell.font = Font(name="맑은 고딕", size=10, bold=True,
+                          color="1F7A1F" if ok else "C00000")
+        vcell.alignment = Alignment(horizontal="center")
+
+    r2 += 1
+    s2.cell(row=r2, column=1, value="총계").font = Font(name="맑은 고딕", size=10, bold=True)
+    for c in (2, 3, 4, 5):
+        col = get_column_letter(c)
+        cell = s2.cell(row=r2, column=c, value=f"=SUM({col}4:{col}{r2 - 1})")
+        cell.font = Font(name="맑은 고딕", size=10, bold=True)
+        cell.border = box
+        if c != 2:
+            cell.number_format = money
+    for c in (1, 6):
+        s2.cell(row=r2, column=c).border = box
+
+    for col, w in zip("ABCDEF", (10, 8, 14, 11, 14, 9)):
+        s2.column_dimensions[col].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 # ---------------------------------------------------------------- 진입점 (JS 가 호출)
 
 async def convert(files, api_key="", use_gemini=True, progress=None,
@@ -1002,6 +1205,7 @@ async def convert(files, api_key="", use_gemini=True, progress=None,
         return {
             "ok": False, "tsv": "", "report": "",
             "refine_msg": "", "xlsx": None, "edufine": None,
+            "edufine_pumui": None, "handoff": None,
             "summary": [], "errors": errors,
         }
 
@@ -1022,6 +1226,16 @@ async def convert(files, api_key="", use_gemini=True, progress=None,
     except Exception as e:
         edufine = None
         errors.append(f"에듀파인 서식 생성 실패: {e}")
+    try:
+        edufine_pumui = write_edufine_pumui_xlsx(rows)
+    except Exception as e:
+        edufine_pumui = None
+        errors.append(f"품의용 서식 생성 실패: {e}")
+    try:
+        handoff = write_handoff_xlsx(sheets, refine_msg)
+    except Exception as e:
+        handoff = None
+        errors.append(f"행정실 넘기기용 생성 실패: {e}")
 
     summary = []
     for s in order_sheets(sheets):
@@ -1037,5 +1251,6 @@ async def convert(files, api_key="", use_gemini=True, progress=None,
     return {
         "ok": True, "tsv": tsv, "report": report,
         "refine_msg": refine_msg, "xlsx": xlsx, "edufine": edufine,
+        "edufine_pumui": edufine_pumui, "handoff": handoff,
         "summary": summary, "errors": errors,
     }
