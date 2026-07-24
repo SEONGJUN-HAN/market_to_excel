@@ -345,6 +345,12 @@ MALL_NEW = "옥션"
 MALL_OLD = "지마켓"
 MALL_ORDER = ("지마켓", "옥션", "11번가")
 
+# 장바구니 북마클릿이 합성한 견적서에 심는 몰 표식.
+# 11번가는 옥션과 같은 신식 형식으로 합성되므로 형식만으론 구분이 안 된다.
+# (표식 값에 '11번가' 리터럴을 쓰면 아래 11번가-가드에 걸리므로 ASCII 코드를 쓴다.)
+CART_MALL_RE = re.compile(r"<!--\s*CARTMALL:([A-Za-z0-9_]+)\s*-->")
+CART_MALL_MAP = {"gmarket": "지마켓", "auction": "옥션", "st11": "11번가"}
+
 
 def parse_file(name, data):
     """업로드된 (파일명, bytes) 하나를 Sheet 로 파싱한다."""
@@ -353,13 +359,19 @@ def parse_file(name, data):
         return parse_11st(data, name)
 
     html = read_html(data)
-    if "11번가" in html or "십일번가" in html:
+
+    # 북마클릿이 심은 몰 표식이 있으면 그 몰로 라벨링한다(11번가를 옥션으로 오인하지 않도록).
+    m = CART_MALL_RE.search(html)
+    cart_mall = CART_MALL_MAP.get(m.group(1)) if m else None
+
+    # 표식이 없는 일반 업로드에서만 11번가 HTML 을 걸러낸다(11번가 원본 견적서는 PDF 로만 지원).
+    if cart_mall is None and ("11번가" in html or "십일번가" in html):
         raise ValueError("11번가 견적서는 PDF 로 받아주세요.")
 
     if "table-data__value" in html or "list__estimate-summary" in html:
-        return parse_ebay_new(html, MALL_NEW, name)
+        return parse_ebay_new(html, cart_mall or MALL_NEW, name)
     if "font-tahoma" in html:
-        return parse_ebay_old(html, MALL_OLD, name)
+        return parse_ebay_old(html, cart_mall or MALL_OLD, name)
     raise ValueError("지원하지 않는 견적서 양식입니다.")
 
 
