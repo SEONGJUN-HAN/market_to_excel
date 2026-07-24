@@ -150,6 +150,11 @@
     padding: 5px 10px; font-size: 12.5px; color: var(--sub); }
   .flow span.on { background: rgba(29,90,166,.08); border-color: var(--brand-2); color: var(--brand); font-weight: 700; }
   .flow i { color: var(--sub); font-style: normal; }
+  .bm-box { margin: 16px 0 6px; padding: 16px 18px; border: 1px solid var(--brand-2);
+    border-radius: 10px; background: rgba(29,90,166,.05); }
+  .bm-drag { display: inline-block; padding: 11px 20px; background: var(--brand); color: #fff;
+    border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14.5px; cursor: grab; }
+  .bm-drag:hover { background: var(--brand-2); }
   a.ghost { color: var(--brand-2); text-decoration: none; font-size: 13px; font-weight: 600; }
   a.ghost:hover { text-decoration: underline; }
   .divider { height: 1px; background: var(--line); margin: 16px 0; }
@@ -291,9 +296,21 @@
 
     <h3>넣는 방법은 두 가지</h3>
     <ol>
-      <li><b>견적서 파일 올리기</b> — 쇼핑몰 장바구니에서 <b>견적서 출력</b>으로 받은 파일(<code>.xls</code>, 11번가는 <code>.pdf</code>)을 위 <b>①</b> 칸에 끌어다 놓습니다. 여러 개 한 번에 됩니다.</li>
-      <li><b>장바구니 북마클릿(원클릭)</b> — 장바구니에서 체크만 하고 북마크를 누르면, 이 화면이 열리며 자동으로 변환까지 됩니다. 설치 방법은 <b>별도 안내</b>를 참고하세요. <span class="hint" style="display:inline">(팝업이 막히면 파일로 받아 위 ① 칸에 올려도 동일합니다.)</span></li>
+      <li><b>장바구니 북마클릿(원클릭) — 권장</b> · 장바구니에서 살 것만 체크하고 북마크를 누르면, 이 화면이 열리며 자동으로 변환까지 됩니다. <b>장바구니에 담은 순서 그대로</b> 정리됩니다(견적서 출력은 순서가 섞입니다). 설치는 아래를 보세요.</li>
+      <li><b>견적서 파일 올리기</b> · 쇼핑몰 장바구니에서 <b>견적서 출력</b>으로 받은 파일(<code>.xls</code>, 11번가는 <code>.pdf</code>)을 위 <b>①</b> 칸에 끌어다 놓습니다. 여러 개 한 번에 됩니다.</li>
     </ol>
+
+    <div class="bm-box">
+      <h3 style="margin-top:2px">북마클릿 설치 (한 번만)</h3>
+      <p>아래 버튼을 브라우저 <b>북마크바로 끌어다 놓으세요.</b> (북마크바가 안 보이면 <code>Ctrl+Shift+B</code>)</p>
+      <p><a class="bm-drag" id="bm-btn" href="#" draggable="true">🧾 장바구니 → 견적 변환</a>
+         <span class="hint" id="bm-status" style="display:inline; margin-left:8px">불러오는 중…</span></p>
+      <p style="margin-bottom:6px">이 북마클릿 하나로 <b>품의자·원인행위 모두</b> 씁니다 — 누르면 품의자 화면으로 열리고, 행정직이면 <b>원인행위</b> 탭으로 바꾸면 됩니다.</p>
+      <p style="margin-bottom:0">지마켓·옥션·11번가 장바구니에서 작동합니다. 팝업이 막히면 견적서 파일로 받아 위 <b>①</b> 칸에 올려도 동일합니다.
+         <a class="ghost" href="#" id="bm-copy">드래그가 안 되면 · 코드 복사</a></p>
+      <textarea id="bm-code" readonly style="display:none; width:100%; height:88px; margin-top:8px;
+        font:12px/1.4 Consolas,monospace; border:1px solid var(--line); border-radius:6px; padding:8px; background:var(--code-bg); color:var(--ink);"></textarea>
+    </div>
 
     <h3>Gemini 품명 정리 (선택)</h3>
     <p>본인 Gemini API 키를 <b>②</b> 칸에 넣으면 품명·규격을 더 깔끔하게 다듬습니다. 키는 이 브라우저에서 구글로 직접 전송되며 서버를 거치지 않습니다. 비워 두면 규칙 기반으로만 정리합니다.
@@ -520,6 +537,33 @@ function showTab(tab) {
 for (const t of ["teacher", "admin", "guide"]) {
   $("tab-" + t).addEventListener("click", () => showTab(t));
 }
+
+// ---------- 사용방법 탭의 북마클릿 심기 ----------
+// 북마클릿은 별도 파일(cart-bookmarklet.txt)로 두고 여기서 불러와 href 에 꽂는다.
+// 이 파일 하나가 품의자·원인행위 공통이다. (누르면 품의자 화면으로 열림)
+(async () => {
+  try {
+    const code = (await (await fetch("cart-bookmarklet.txt")).text()).trim();
+    if (!code.startsWith("javascript:")) throw new Error("형식 오류");
+    $("bm-btn").setAttribute("href", code);
+    $("bm-code").value = code;
+    $("bm-status").textContent = "← 이 버튼을 북마크바로 드래그";
+  } catch (e) {
+    $("bm-status").textContent = "북마클릿을 불러오지 못했습니다. '코드 복사'를 이용하세요.";
+    console.error(e);
+  }
+})();
+// 드래그 대신 클릭하면 실행되는 게 아니라 안내만 (실행은 장바구니에서)
+$("bm-btn").addEventListener("click", (e) => { e.preventDefault(); toast("이 버튼은 북마크바로 '드래그'하세요. 실행은 쇼핑몰 장바구니에서."); });
+$("bm-copy").addEventListener("click", (e) => {
+  e.preventDefault();
+  const ta = $("bm-code");
+  ta.style.display = ta.style.display === "none" ? "block" : "none";
+  if (ta.style.display === "block") {
+    ta.select();
+    navigator.clipboard.writeText(ta.value).then(() => toast("북마클릿 코드를 복사했습니다")).catch(() => {});
+  }
+});
 
 // ---------- 복사 / 다운로드 ----------
 async function copyTsv() {
