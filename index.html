@@ -336,6 +336,13 @@
     </div>
     <div class="chips" id="bm-chips"></div>
 
+    <div class="fill">
+      <label class="fld" style="flex-basis:100%;">구입품목 요약 <span class="opt2">— 오른쪽 ▾ 를 눌러 다른 표현을 고르거나 직접 쓰세요</span>
+        <input type="text" id="bm-summary" list="bm-summary-list" autocomplete="off">
+      </label>
+    </div>
+    <datalist id="bm-summary-list"></datalist>
+
     <div class="divider"></div>
 
     <p class="hint" style="margin:0 0 4px;"><b>넣을 항목만 고르세요.</b>
@@ -442,8 +449,10 @@
     <h3>에듀파인 본문 문구</h3>
     <p>변환이 끝나면 결과 아래에 <b>품의(또는 지출원인행위) 본문</b>이 만들어집니다. 그대로 복사해 에듀파인 본문에 붙여넣으세요.</p>
     <ul>
-      <li><b>자동</b> — 구입품목 요약, 건수·수량, 소요예산과 <b>한글 금액</b>(금일십일만구천칠백원)</li>
+      <li><b>자동</b> — 건수·수량, 소요예산과 <b>한글 금액</b>(금일십일만구천칠백원)</li>
       <li><b>반자동</b> — 물품 성격(사무용품·실험 물품·청소용품 …)은 품명에서 추정해 미리 채웁니다. 틀리면 바꾸면 됩니다.</li>
+      <li><b>골라 쓰기</b> — 구입품목 요약은 <b>「사무용품 등 9종」 · 「○○○ 외 8종」</b> 같은 후보를 만들어 드립니다.
+          칸의 ▾ 를 눌러 고르거나 직접 쓰면 됩니다. 금액이 가장 큰 품목이 늘 장바구니를 대표하지는 않기 때문입니다.</li>
       <li><b>직접 입력</b> — <b>사용처(부서·교실)</b>만 견적서에 없는 정보라 채워야 합니다.
           한 번 넣으면 이 브라우저가 기억해 다음 품의부터는 그대로 나옵니다.</li>
     </ul>
@@ -807,9 +816,36 @@ function bmInferKind(items) {
       if (words.some((w) => hay.includes(w))) score.set(kind, (score.get(kind) || 0) + 1);
     }
   }
-  let best = "", bestN = 0;
-  for (const [kind, n] of score) if (n > bestN) { best = kind; bestN = n; }
-  return { kind: best || "물품", hits: bestN, total: items.length };
+  const ranked = [...score.entries()].sort((a, b) => b[1] - a[1]);
+  return {
+    kind: ranked.length ? ranked[0][0] : "물품",
+    hits: ranked.length ? ranked[0][1] : 0,
+    total: items.length, ranked,
+  };
+}
+
+// 구입품목 요약 후보. 어느 것이 대표다운지는 장바구니마다 달라서 하나로 못 정한다.
+// 금액 1위 품명이 장바구니 성격을 대표하지 못하는 일이 흔해서(사무용품 틈의 여행 어댑터),
+// 물품군으로 묶은 표현을 먼저 놓고 나머지를 고를 수 있게 한다.
+// 품명은 자르지 않는다. 공문 본문에 말줄임표가 남는 것보다 다른 후보를 고르는 편이 낫다.
+function bmSummaries(items, qty, infer, kind) {
+  const n = items.length;
+  const tail = n > 1 ? `${n}종 (총 ${qty}점)` : `${qty}점`;
+  const withName = (name) => (n > 1 ? `${name.trim()} 외 ${n - 1}종 (총 ${qty}점)` : `${name.trim()} ${qty}점`);
+
+  const out = [`${kind || infer.kind} 등 ${tail}`];
+
+  // 성격이 뚜렷하게 섞였을 때만 두 번째 물품군까지 묶어 준다.
+  const [a, b] = infer.ranked;
+  if (a && b && b[1] >= 2) out.push(`${a[0]} 및 ${b[0]} 등 ${tail}`);
+
+  if (n) {
+    out.push(withName(items.reduce((x, y) => (y.amount > x.amount ? y : x), items[0]).name));
+    out.push(withName(items[0].name));
+  }
+  out.push(n > 1 ? `총 ${n}종 ${qty}점` : `${qty}점`);
+
+  return [...new Set(out.filter((s) => s && s.trim()))];
 }
 
 let bmData = null;   // 변환 결과에서 뽑아 둔 자동 채움값
@@ -818,16 +854,7 @@ function bmBuildData(res) {
   const items = bmItems(res);
   const qty = items.reduce((a, b) => a + b.qty, 0);
   const total = (res.summary || []).reduce((a, s) => a + Number(s.total || 0), 0);
-
-  let head = "";
-  if (items.length) {
-    const top = items.reduce((a, b) => (b.amount > a.amount ? b : a), items[0]);
-    head = top.name.trim();
-    if (head.length > 18) head = head.slice(0, 18) + "…";
-  }
-  const summaryText = !items.length ? BM_MARK
-    : items.length === 1 ? `${head} ${qty}점`
-    : `${head} 외 ${items.length - 1}종 (총 ${qty}점)`;
+  const infer = bmInferKind(items);
 
   // 몰 이름. 11번가는 옥션 형식을 빌려 오므로 판매자 앞의 '11st' 로만 알아볼 수 있다.
   // 빠뜨리지 않게 덧붙이되, 옥션이 함께 남을 수 있다는 점은 서식 편집 안내에 적어 뒀다.
@@ -836,11 +863,10 @@ function bmBuildData(res) {
 
   const now = new Date();
   return {
-    items, qty, total,
-    summaryText,
+    items, qty, total, infer,
+    summaries: bmSummaries(items, qty, infer, infer.kind),
     malls: malls.join(", ") || BM_MARK,
     today: `${now.getFullYear()}. ${now.getMonth() + 1}. ${now.getDate()}.`,
-    infer: bmInferKind(items),
   };
 }
 
@@ -970,7 +996,7 @@ function bmRender() {
   // 자동 치환자는 늘 값이 있고, 선택 항목은 꺼져 있으면 '빈 값'으로 쳐서 줄이 빠진다.
   const vals = {
     "사용처": D, "물품군": kind,
-    "품목요약": bmData.summaryText,
+    "품목요약": $("bm-summary").value.trim(),   // 비우면 구입품목 줄이 빠진다
     "건수": String(bmData.items.length), "수량": String(bmData.qty),
     "금액": Number(bmData.total).toLocaleString("ko-KR"),
     "금액한글": bmHangulAmount(bmData.total),
@@ -987,6 +1013,8 @@ function bmRender() {
     vals[name] = v;
     if (!v) empties.add(name);
   }
+
+  for (const [k, v] of Object.entries(vals)) if (!v) empties.add(k);
 
   // 줄 삭제·번호 매기기가 먼저다. 치환을 먼저 하면 어느 줄이 비었는지 알 수 없다.
   let text = bmLayout($("bm-tpl").value, empties);
@@ -1005,6 +1033,15 @@ function bmRender() {
 
 function bmInit(res) {
   bmData = bmBuildData(res);
+
+  // 읽힌 품목이 하나도 없으면(파일을 못 읽었거나 빈 견적서) 만들 본문이 없다.
+  // 이때 카드를 띄우면 '금 0원(금영원)' 짜리 품의가 복사 가능한 채로 남는다.
+  if (!bmData.items.length) {
+    bmData = null;
+    $("bonmun-card").classList.add("hidden");
+    return;
+  }
+
   const st = bmStore();
 
   $("bm-dept").value = st.dept || "";
@@ -1015,6 +1052,11 @@ function bmInit(res) {
     ? `— 품명 ${bmData.infer.hits}/${bmData.infer.total}건에서 추정, 바꿔도 됩니다`
     : "— 품명으로 판단이 안 돼 기본값입니다";
   $("bm-kind-list").innerHTML = BM_KINDS.map(([k]) => `<option value="${k}"></option>`).join("");
+
+  // 요약 후보는 물품 성격을 읽어 만들므로 위 줄보다 뒤에 와야 한다.
+  // 장바구니마다 달라지는 값이라 기억하지 않고 변환할 때마다 새로 만든다.
+  bmSummaryTouched = false;
+  bmRefreshSummaries(true);
 
   // 처음에는 가장 간단한 서식(목적·구입처만)으로 두고, 쓴 적 있는 항목은 되살린다.
   const saved = st.fields || {};
@@ -1037,7 +1079,22 @@ function bmSyncAudience() {
   bmRender();
 }
 
-for (const id of ["bm-dept", "bm-kind"]) $(id).addEventListener("input", bmRender);
+// 물품 성격을 바꾸면 '○○ 등 N종' 후보도 따라가야 한다. 다만 사용자가 요약을 직접
+// 손댔거나 다른 후보를 고른 뒤라면 그 선택을 덮어쓰지 않는다.
+let bmSummaryTouched = false;
+
+function bmRefreshSummaries(force) {
+  if (!bmData) return;
+  const list = bmSummaries(bmData.items, bmData.qty, bmData.infer, $("bm-kind").value.trim());
+  bmData.summaries = list;
+  $("bm-summary-list").innerHTML = list
+    .map((s) => `<option value="${s.replace(/"/g, "&quot;")}"></option>`).join("");
+  if (force || !bmSummaryTouched) $("bm-summary").value = list[0];
+}
+
+$("bm-dept").addEventListener("input", bmRender);
+$("bm-kind").addEventListener("input", () => { bmRefreshSummaries(); bmRender(); });
+$("bm-summary").addEventListener("input", () => { bmSummaryTouched = true; bmRender(); });
 $("bm-dept").addEventListener("change", () => bmRemember("dept", $("bm-dept").value));
 $("bm-tpl").addEventListener("input", () => {
   bmSave({ [bmTplKey()]: $("bm-tpl").value });
