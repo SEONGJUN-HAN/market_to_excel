@@ -328,39 +328,39 @@
 
     <div class="fill">
       <label class="fld">사용처 (부서 · 교실)
-        <input type="text" id="bm-dept" list="bm-dept-list" placeholder="예: 행정실 / 과학실 / 3학년" autocomplete="off">
+        <input type="text" id="bon-dept" list="bon-dept-list" placeholder="예: 행정실 / 과학실 / 3학년" autocomplete="off">
       </label>
-      <label class="fld">물품 성격 <span class="opt2" id="bm-kind-note"></span>
-        <input type="text" id="bm-kind" list="bm-kind-list" placeholder="예: 사무용품" autocomplete="off">
+      <label class="fld">물품 성격 <span class="opt2" id="bon-kind-note"></span>
+        <input type="text" id="bon-kind" list="bon-kind-list" placeholder="예: 사무용품" autocomplete="off">
       </label>
     </div>
-    <div class="chips" id="bm-chips"></div>
+    <div class="chips" id="bon-chips"></div>
 
     <div class="fill">
       <label class="fld" style="flex-basis:100%;">구입품목 요약 <span class="opt2">— 오른쪽 ▾ 를 눌러 다른 표현을 고르거나 직접 쓰세요</span>
-        <input type="text" id="bm-summary" list="bm-summary-list" autocomplete="off">
+        <input type="text" id="bon-summary" list="bon-summary-list" autocomplete="off">
       </label>
     </div>
-    <datalist id="bm-summary-list"></datalist>
+    <datalist id="bon-summary-list"></datalist>
 
     <div class="divider"></div>
 
     <p class="hint" style="margin:0 0 4px;"><b>넣을 항목만 고르세요.</b>
       체크를 끄거나 칸을 비우면 그 줄은 본문에서 아예 사라지고, 남은 항목의 번호(<code>1. 2.</code> · <code>가. 나. 다.</code>)가 다시 매겨집니다.
       간단한 물품이면 다 꺼 두고 품목·금액만 남겨도 됩니다.</p>
-    <div id="bm-opts"></div>
+    <div id="bon-opts"></div>
 
     <div class="divider"></div>
 
     <div class="row" style="margin-bottom:12px;">
-      <button class="primary" id="bm-copy">본문 복사</button>
-      <button id="bm-tpl-toggle">서식 편집</button>
-      <span class="needfix" id="bm-warn"></span>
+      <button class="primary" id="bon-copy">본문 복사</button>
+      <button id="bon-tpl-toggle">서식 편집</button>
+      <span class="needfix" id="bon-warn"></span>
     </div>
-    <div class="bonmun" id="bm-out"></div>
+    <div class="bonmun" id="bon-out"></div>
 
-    <div class="hidden" id="bm-tpl-box" style="margin-top:14px;">
-      <textarea class="tpl" id="bm-tpl" spellcheck="false"></textarea>
+    <div class="hidden" id="bon-tpl-box" style="margin-top:14px;">
+      <textarea class="tpl" id="bon-tpl" spellcheck="false"></textarea>
       <p class="hint">
         <b>번호</b> — 줄 앞의 <code>#.</code> 는 바깥 단계, <code>@.</code> 는 안쪽 단계입니다. 기호(<code>1. 2.</code> · <code>가. 나.</code>)와 들여쓰기는 자동으로 붙으니
         서식에는 <code>#.</code> · <code>@.</code> 만 적으면 됩니다. 항목이 하나뿐이면 공문서 작성 규칙대로 기호를 생략하고,
@@ -369,12 +369,12 @@
         <b>켜고 끄는 항목</b> — <code>{목적}</code> <code>{관련}</code> <code>{구입처}</code> <code>{계약상대자}</code> <code>{계약방법}</code> <code>{예산과목}</code>
         · 여기 쓴 치환자만 위에 체크 칸으로 나타나고, <b>값이 비면 그 줄은 통째로 빠집니다.</b><br>
         고친 서식은 이 브라우저에 저장되어 다음에도 그대로 쓰입니다.
-        <a class="ghost" href="#" id="bm-tpl-reset">기본 서식으로 되돌리기</a><br>
+        <a class="ghost" href="#" id="bon-tpl-reset">기본 서식으로 되돌리기</a><br>
         ※ 구입처 칸을 비워 두면 실제 <b>몰 이름</b>이 들어갑니다. 이때 <b>11번가 장바구니는 변환 구조상 「옥션」이 함께 표기될 수 있으니</b>
         확인하세요. 기본값이 "온라인 오픈마켓"인 이유입니다.</p>
     </div>
 
-    <datalist id="bm-dept-list">
+    <datalist id="bon-dept-list">
       <option value="행정실"></option><option value="교무실"></option><option value="과학실"></option>
       <option value="보건실"></option><option value="도서실"></option><option value="급식실"></option>
       <option value="컴퓨터실"></option><option value="음악실"></option><option value="미술실"></option>
@@ -382,7 +382,7 @@
       <option value="1학년"></option><option value="2학년"></option><option value="3학년"></option>
       <option value="4학년"></option><option value="5학년"></option><option value="6학년"></option>
     </datalist>
-    <datalist id="bm-kind-list"></datalist>
+    <datalist id="bon-kind-list"></datalist>
   </div>
   </div><!-- /#pane-work -->
 
@@ -874,9 +874,9 @@ function bmTplDefault() { return audience === "admin" ? BM_TPL_ADMIN : BM_TPL_TE
 function bmTplKey() { return audience === "admin" ? "tplAdmin" : "tplTeacher"; }
 
 function bmRenderChips() {
-  const box = $("bm-chips");
+  const box = $("bon-chips");
   const recent = bmStore().deptRecent || [];
-  const sug = bmData ? BM_DEPT_SUGGEST[$("bm-kind").value.trim()] : null;
+  const sug = bmData ? BM_DEPT_SUGGEST[$("bon-kind").value.trim()] : null;
   const list = recent.slice();
   if (sug && !list.includes(sug)) list.push(sug);
   if (!list.length) { box.innerHTML = ""; return; }
@@ -885,7 +885,7 @@ function bmRenderChips() {
   ).join("");
   for (const b of box.querySelectorAll(".chip")) {
     b.addEventListener("click", () => {
-      $("bm-dept").value = b.dataset.dept;
+      $("bon-dept").value = b.dataset.dept;
       bmRemember("dept", b.dataset.dept);
       bmRender();
     });
@@ -897,12 +897,12 @@ let bmFields = {};
 
 // 서식에 실제로 쓰인 치환자만 화면에 줄로 띄운다.
 function bmActiveOpts() {
-  const tpl = $("bm-tpl").value;
+  const tpl = $("bon-tpl").value;
   return BM_OPTS.filter(([name]) => tpl.includes("{" + name + "}"));
 }
 
 function bmBuildOpts() {
-  const box = $("bm-opts");
+  const box = $("bon-opts");
   box.innerHTML = bmActiveOpts().map(([name, ph]) => {
     const f = bmFields[name] || { v: "", on: false };
     return `<div class="opt-row${f.on ? "" : " off"}" data-row="${name}">`
@@ -989,14 +989,14 @@ function bmLayout(text, empties) {
 
 function bmRender() {
   if (!bmData) return;
-  const dept = $("bm-dept").value.trim();
-  const kind = $("bm-kind").value.trim() || "물품";
+  const dept = $("bon-dept").value.trim();
+  const kind = $("bon-kind").value.trim() || "물품";
   const D = dept || BM_MARK;
 
   // 자동 치환자는 늘 값이 있고, 선택 항목은 꺼져 있으면 '빈 값'으로 쳐서 줄이 빠진다.
   const vals = {
     "사용처": D, "물품군": kind,
-    "품목요약": $("bm-summary").value.trim(),   // 비우면 구입품목 줄이 빠진다
+    "품목요약": $("bon-summary").value.trim(),   // 비우면 구입품목 줄이 빠진다
     "건수": String(bmData.items.length), "수량": String(bmData.qty),
     "금액": Number(bmData.total).toLocaleString("ko-KR"),
     "금액한글": bmHangulAmount(bmData.total),
@@ -1017,15 +1017,15 @@ function bmRender() {
   for (const [k, v] of Object.entries(vals)) if (!v) empties.add(k);
 
   // 줄 삭제·번호 매기기가 먼저다. 치환을 먼저 하면 어느 줄이 비었는지 알 수 없다.
-  let text = bmLayout($("bm-tpl").value, empties);
+  let text = bmLayout($("bon-tpl").value, empties);
   for (const [k, v] of Object.entries(vals)) text = text.split("{" + k + "}").join(v);
-  $("bm-out").dataset.text = text;
+  $("bon-out").dataset.text = text;
 
   const esc = text.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-  $("bm-out").innerHTML = esc.split(BM_MARK).join(`<mark>${BM_MARK}</mark>`);
+  $("bon-out").innerHTML = esc.split(BM_MARK).join(`<mark>${BM_MARK}</mark>`);
 
   const holes = text.split(BM_MARK).length - 1;
-  const warn = $("bm-warn");
+  const warn = $("bon-warn");
   warn.textContent = holes ? `채워야 할 자리 ${holes}곳 (${BM_MARK} 표시)` : "빈 자리 없음 — 그대로 붙여넣어도 됩니다";
   warn.classList.toggle("done", holes === 0);
   bmRenderChips();
@@ -1044,14 +1044,14 @@ function bmInit(res) {
 
   const st = bmStore();
 
-  $("bm-dept").value = st.dept || "";
+  $("bon-dept").value = st.dept || "";
 
   // 물품 성격만 자동으로 채운다. 품명에서 나온 값이라 근거가 있고, 틀려도 눈에 바로 띈다.
-  $("bm-kind").value = bmData.infer.kind;
-  $("bm-kind-note").textContent = bmData.infer.hits
+  $("bon-kind").value = bmData.infer.kind;
+  $("bon-kind-note").textContent = bmData.infer.hits
     ? `— 품명 ${bmData.infer.hits}/${bmData.infer.total}건에서 추정, 바꿔도 됩니다`
     : "— 품명으로 판단이 안 돼 기본값입니다";
-  $("bm-kind-list").innerHTML = BM_KINDS.map(([k]) => `<option value="${k}"></option>`).join("");
+  $("bon-kind-list").innerHTML = BM_KINDS.map(([k]) => `<option value="${k}"></option>`).join("");
 
   // 요약 후보는 물품 성격을 읽어 만들므로 위 줄보다 뒤에 와야 한다.
   // 장바구니마다 달라지는 값이라 기억하지 않고 변환할 때마다 새로 만든다.
@@ -1065,7 +1065,7 @@ function bmInit(res) {
     bmFields[name] = saved[name] ? { v: saved[name].v || "", on: !!saved[name].on } : { v: def, on };
   }
 
-  $("bm-tpl").value = st[bmTplKey()] || bmTplDefault();
+  $("bon-tpl").value = st[bmTplKey()] || bmTplDefault();
   $("bonmun-card").classList.remove("hidden");
   bmBuildOpts();
   bmRender();
@@ -1074,7 +1074,7 @@ function bmInit(res) {
 // 탭(품의자/원인행위)을 바꾸면 서식이 달라진다. 사용자가 고친 서식이 있으면 그걸 살린다.
 function bmSyncAudience() {
   if (!bmData) return;
-  $("bm-tpl").value = bmStore()[bmTplKey()] || bmTplDefault();
+  $("bon-tpl").value = bmStore()[bmTplKey()] || bmTplDefault();
   bmBuildOpts();
   bmRender();
 }
@@ -1085,37 +1085,37 @@ let bmSummaryTouched = false;
 
 function bmRefreshSummaries(force) {
   if (!bmData) return;
-  const list = bmSummaries(bmData.items, bmData.qty, bmData.infer, $("bm-kind").value.trim());
+  const list = bmSummaries(bmData.items, bmData.qty, bmData.infer, $("bon-kind").value.trim());
   bmData.summaries = list;
-  $("bm-summary-list").innerHTML = list
+  $("bon-summary-list").innerHTML = list
     .map((s) => `<option value="${s.replace(/"/g, "&quot;")}"></option>`).join("");
-  if (force || !bmSummaryTouched) $("bm-summary").value = list[0];
+  if (force || !bmSummaryTouched) $("bon-summary").value = list[0];
 }
 
-$("bm-dept").addEventListener("input", bmRender);
-$("bm-kind").addEventListener("input", () => { bmRefreshSummaries(); bmRender(); });
-$("bm-summary").addEventListener("input", () => { bmSummaryTouched = true; bmRender(); });
-$("bm-dept").addEventListener("change", () => bmRemember("dept", $("bm-dept").value));
-$("bm-tpl").addEventListener("input", () => {
-  bmSave({ [bmTplKey()]: $("bm-tpl").value });
+$("bon-dept").addEventListener("input", bmRender);
+$("bon-kind").addEventListener("input", () => { bmRefreshSummaries(); bmRender(); });
+$("bon-summary").addEventListener("input", () => { bmSummaryTouched = true; bmRender(); });
+$("bon-dept").addEventListener("change", () => bmRemember("dept", $("bon-dept").value));
+$("bon-tpl").addEventListener("input", () => {
+  bmSave({ [bmTplKey()]: $("bon-tpl").value });
   bmBuildOpts();     // 서식에서 치환자를 넣거나 빼면 항목 줄도 따라 생기고 사라진다
   bmRender();
 });
-$("bm-tpl-toggle").addEventListener("click", () => {
-  $("bm-tpl-box").classList.toggle("hidden");
+$("bon-tpl-toggle").addEventListener("click", () => {
+  $("bon-tpl-box").classList.toggle("hidden");
 });
-$("bm-tpl-reset").addEventListener("click", (e) => {
+$("bon-tpl-reset").addEventListener("click", (e) => {
   e.preventDefault();
-  $("bm-tpl").value = bmTplDefault();
+  $("bon-tpl").value = bmTplDefault();
   bmSave({ [bmTplKey()]: null });
   bmBuildOpts();
   bmRender();
   toast("기본 서식으로 되돌렸습니다");
 });
-$("bm-copy").addEventListener("click", async () => {
-  const text = $("bm-out").dataset.text || "";
+$("bon-copy").addEventListener("click", async () => {
+  const text = $("bon-out").dataset.text || "";
   if (!text) return;
-  bmRemember("dept", $("bm-dept").value);
+  bmRemember("dept", $("bon-dept").value);
   bmPersistFields();
   try {
     await navigator.clipboard.writeText(text);
