@@ -337,8 +337,14 @@
     <div class="chips" id="bon-chips"></div>
 
     <div class="fill">
-      <label class="fld" style="flex-basis:100%;">구입품목 요약 <span class="opt2">— 오른쪽 ▾ 를 눌러 다른 표현을 고르거나 직접 쓰세요</span>
+      <label class="fld" style="flex:1 1 340px;">구입품목 요약 <span class="opt2">— ▾ 를 눌러 대표로 세울 품목을 고르거나 직접 쓰세요</span>
         <input type="text" id="bon-summary" list="bon-summary-list" autocomplete="off">
+      </label>
+      <label class="sel" style="flex:0 1 210px; justify-content:flex-end;">표현
+        <select id="bon-summary-form">
+          <option value="외" selected>○○ 외 N종 (총 M점)</option>
+          <option value="등">○○ 등 N종</option>
+        </select>
       </label>
     </div>
     <datalist id="bon-summary-list"></datalist>
@@ -451,8 +457,9 @@
     <ul>
       <li><b>자동</b> — 건수·수량, 소요예산과 <b>한글 금액</b>(금일십일만구천칠백원)</li>
       <li><b>반자동</b> — 물품 성격(사무용품·실험 물품·청소용품 …)은 품명에서 추정해 미리 채웁니다. 틀리면 바꾸면 됩니다.</li>
-      <li><b>골라 쓰기</b> — 구입품목 요약은 <b>「사무용품 등 9종」 · 「○○○ 외 8종」</b> 같은 후보를 만들어 드립니다.
-          칸의 ▾ 를 눌러 고르거나 직접 쓰면 됩니다. 금액이 가장 큰 품목이 늘 장바구니를 대표하지는 않기 때문입니다.</li>
+      <li><b>골라 쓰기</b> — 구입품목 요약은 <b>「○○○ 외 8종(총 31점)」</b> 처럼 품목 하나를 대표로 세웁니다.
+          기본값은 금액이 가장 큰 품목이고, 칸의 ▾ 를 누르면 <b>담긴 품명이 쭉 나오니</b> 대표로 쓸 것을 고르면 됩니다.
+          어느 품목이 대표다운지는 산 사람이 제일 잘 알기 때문입니다. 옆의 <b>표현</b>으로 「○○○ 등 9종」 꼴로 바꿀 수도 있습니다.</li>
       <li><b>직접 입력</b> — <b>사용처(부서·교실)</b>만 견적서에 없는 정보라 채워야 합니다.
           한 번 넣으면 이 브라우저가 기억해 다음 품의부터는 그대로 나옵니다.</li>
     </ul>
@@ -645,7 +652,7 @@ function renderResults(res) {
   $("download-pumui").disabled = !res.edufine_pumui;
   $("download-handoff").disabled = !res.handoff;
 
-  bmInit(res);
+  bonInit(res);
 }
 
 function downloadBytes(bytes, prefix) {
@@ -667,12 +674,12 @@ function downloadBytes(bytes, prefix) {
 // 그대로 공문에 올라가는 글이라, 그럴듯한 추측이 사실처럼 박히는 게 제일 위험하다.
 // 대신 사용처는 사람마다 거의 고정값이라 localStorage 에 기억해 두 번째부터는 손댈 일이 없게 한다.
 
-const BM_KEY = "bonmun_v1";
-const BM_MARK = "○○○○";
+const BON_KEY = "bonmun_v1";
+const BON_MARK = "○○○○";
 
 // 품명·규격 키워드 → 물품 성격. 겹치는 낱말은 가장 좁은 쪽에만 둔다(변별력을 위해).
 // 부분일치라 '책'처럼 다른 말에 묻히는 짧은 낱말은 넣지 않는다(책상·책꽂이가 도서로 잡힌다).
-const BM_KINDS = [
+const BON_KINDS = [
   ["사무용품", ["볼펜", "네임펜", "형광펜", "유성펜", "보드마카", "수정테이프", "지우개", "연필", "샤프",
     "a4", "복사용지", "클리어파일", "바인더", "스테이플", "호치키스", "스템플러", "집게", "가위",
     "딱풀", "물풀", "고체풀", "테이프", "포스트잇", "점착메모", "봉투", "결재판", "스탬프", "잉크",
@@ -705,7 +712,7 @@ const BM_KINDS = [
 
 // 물품 성격에서 자연스럽게 따라오는 사용처. 어디까지나 '제안'이라 칩으로만 띄우고
 // 자동으로 채우지는 않는다. (행정실이 과학 교구를 살 수도 있다.)
-const BM_DEPT_SUGGEST = {
+const BON_DEPT_SUGGEST = {
   "실험 물품": "과학실", "보건 물품": "보건실", "급식·조리 물품": "급식실",
   "도서": "도서실", "사무용품": "행정실", "청소·위생 물품": "행정실",
   "정보·전산 소모품": "교무실", "음악 물품": "음악실", "미술·만들기 재료": "미술실",
@@ -714,7 +721,7 @@ const BM_DEPT_SUGGEST = {
 
 // 서식에서 '#.' 은 1.2.3. , '@.' 은 가.나.다. 로 자동으로 매겨진다.
 // 값이 빈 항목은 줄째로 빠지고 번호는 다시 매겨지므로, 서식에 미리 다 적어 둬도 된다.
-const BM_TPL_TEACHER =
+const BON_TPL_TEACHER =
 `#. 관련: {관련}
 
 #. {사용처} {물품군} 구입을 위하여 아래와 같이 품의합니다.
@@ -727,7 +734,7 @@ const BM_TPL_TEACHER =
 
 붙임  품목내역 1부.  끝.`;
 
-const BM_TPL_ADMIN =
+const BON_TPL_ADMIN =
 `#. 관련: {관련}
 
 #. {사용처} {물품군} 구입에 따른 지출원인행위를 아래와 같이 하고자 합니다.
@@ -743,7 +750,7 @@ const BM_TPL_ADMIN =
 
 // 켜고 끌 수 있는 항목. 서식에 그 치환자가 있을 때만 화면에 줄이 뜬다.
 // 서식을 고쳐 {관련} 을 지우면 관련 칸도 같이 사라진다.
-const BM_OPTS = [
+const BON_OPTS = [
   ["목적", "(비우면 사용처·물품 성격으로 자동 작성)", true, ""],
   ["관련", "예: 2026학년도 과학과 교육과정 운영 계획", false, ""],
   ["구입처", "예: 온라인 오픈마켓", true, "온라인 오픈마켓"],
@@ -752,24 +759,24 @@ const BM_OPTS = [
   ["예산과목", "예: 교수학습활동지원-과학과 운영", false, ""],
 ];
 
-function bmStore() {
-  try { return JSON.parse(localStorage.getItem(BM_KEY)) || {}; } catch { return {}; }
+function bonStore() {
+  try { return JSON.parse(localStorage.getItem(BON_KEY)) || {}; } catch { return {}; }
 }
-function bmSave(patch) {
-  const s = Object.assign(bmStore(), patch);
-  try { localStorage.setItem(BM_KEY, JSON.stringify(s)); } catch {}
+function bonSave(patch) {
+  const s = Object.assign(bonStore(), patch);
+  try { localStorage.setItem(BON_KEY, JSON.stringify(s)); } catch {}
 }
 // 최근 쓴 값을 앞으로 당겨 최대 5개까지 기억한다.
-function bmRemember(field, value) {
+function bonRemember(field, value) {
   value = (value || "").trim();
   if (!value) return;
   const key = field + "Recent";
-  const list = [value].concat((bmStore()[key] || []).filter((v) => v !== value)).slice(0, 5);
-  bmSave({ [key]: list, [field]: value });
+  const list = [value].concat((bonStore()[key] || []).filter((v) => v !== value)).slice(0, 5);
+  bonSave({ [key]: list, [field]: value });
 }
 
 // 금액을 회계 관행대로 적는다. 위·변조를 막으려고 1도 '일'로 적는다(일천오백삼십원).
-function bmHangulAmount(n) {
+function bonHangulAmount(n) {
   n = Math.round(Number(n) || 0);
   if (n <= 0) return "금영원";
   const D = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
@@ -793,7 +800,7 @@ function bmHangulAmount(n) {
 }
 
 // 변환 결과의 TSV 에서 품목만 뽑는다(배송비 행 제외). 열: 품명·규격·단가·수량·금액·비고(판매자)
-function bmItems(res) {
+function bonItems(res) {
   const out = [];
   for (const line of String(res.tsv || "").split("\n").slice(1)) {
     if (!line.trim()) continue;
@@ -808,11 +815,11 @@ function bmItems(res) {
 }
 
 // 품목 하나가 여러 성격에 걸려도 한 번만 센다. 한 건도 안 걸리면 무난한 '물품'으로 둔다.
-function bmInferKind(items) {
+function bonInferKind(items) {
   const score = new Map();
   for (const it of items) {
     const hay = (it.name + " " + it.spec).toLowerCase();
-    for (const [kind, words] of BM_KINDS) {
+    for (const [kind, words] of BON_KINDS) {
       if (words.some((w) => hay.includes(w))) score.set(kind, (score.get(kind) || 0) + 1);
     }
   }
@@ -824,37 +831,43 @@ function bmInferKind(items) {
   };
 }
 
-// 구입품목 요약 후보. 어느 것이 대표다운지는 장바구니마다 달라서 하나로 못 정한다.
-// 금액 1위 품명이 장바구니 성격을 대표하지 못하는 일이 흔해서(사무용품 틈의 여행 어댑터),
-// 물품군으로 묶은 표현을 먼저 놓고 나머지를 고를 수 있게 한다.
-// 품명은 자르지 않는다. 공문 본문에 말줄임표가 남는 것보다 다른 후보를 고르는 편이 낫다.
-function bmSummaries(items, qty, infer, kind) {
-  const n = items.length;
-  const tail = n > 1 ? `${n}종 (총 ${qty}점)` : `${qty}점`;
-  const withName = (name) => (n > 1 ? `${name.trim()} 외 ${n - 1}종 (총 ${qty}점)` : `${name.trim()} ${qty}점`);
+// 구입품목 요약. 물품군으로 묶어 버리면 실제로 산 물건이 안 보이므로,
+// 품명 하나를 대표로 세운다. 어느 품목이 대표다운지는 사람이 아는 일이라
+// 드롭다운에 품명을 전부 늘어놓고 고르게 한다.
+// 품명은 자르지 않는다. 공문 본문에 말줄임표가 남는 것보다 다른 품목을 고르는 편이 낫다.
+const BON_FORMS = {
+  "외": (name, n, qty) => (n > 1 ? `${name} 외 ${n - 1}종 (총 ${qty}점)` : `${name} ${qty}점`),
+  "등": (name, n, qty) => (n > 1 ? `${name} 등 ${n}종` : `${name} ${qty}점`),
+};
 
-  const out = [`${kind || infer.kind} 등 ${tail}`];
-
-  // 성격이 뚜렷하게 섞였을 때만 두 번째 물품군까지 묶어 준다.
-  const [a, b] = infer.ranked;
-  if (a && b && b[1] >= 2) out.push(`${a[0]} 및 ${b[0]} 등 ${tail}`);
-
-  if (n) {
-    out.push(withName(items.reduce((x, y) => (y.amount > x.amount ? y : x), items[0]).name));
-    out.push(withName(items[0].name));
-  }
-  out.push(n > 1 ? `총 ${n}종 ${qty}점` : `${qty}점`);
-
-  return [...new Set(out.filter((s) => s && s.trim()))];
+// 드롭다운에 세울 품명. 금액이 가장 큰 품목을 앞에 놓고(= 기본값), 견적서 첫 품목,
+// 그 다음은 견적서 순서 그대로다. 같은 상품이 옵션별로 여러 줄인 경우가 흔해서
+// 품명 기준으로 중복을 지운다.
+function bonSummaryNames(items) {
+  if (!items.length) return [];
+  const top = items.reduce((a, b) => (b.amount > a.amount ? b : a), items[0]);
+  const order = [top.name, items[0].name, ...items.map((it) => it.name)];
+  return [...new Set(order.map((s) => (s || "").trim()).filter(Boolean))];
 }
 
-let bmData = null;   // 변환 결과에서 뽑아 둔 자동 채움값
+// '종' 은 품목내역 행 수로 센다. 붙임으로 나가는 서식의 줄 수와 맞아야 대조가 된다.
+function bonSummaryOptions(form) {
+  if (!bonData) return [];
+  const n = bonData.items.length, qty = bonData.qty;
+  const f = BON_FORMS[form] || BON_FORMS["외"];
+  return [
+    ...bonData.summaryNames.map((name) => f(name, n, qty)),
+    n > 1 ? `총 ${n}종 ${qty}점` : `${qty}점`,
+  ];
+}
 
-function bmBuildData(res) {
-  const items = bmItems(res);
+let bonData = null;   // 변환 결과에서 뽑아 둔 자동 채움값
+
+function bonBuildData(res) {
+  const items = bonItems(res);
   const qty = items.reduce((a, b) => a + b.qty, 0);
   const total = (res.summary || []).reduce((a, s) => a + Number(s.total || 0), 0);
-  const infer = bmInferKind(items);
+  const infer = bonInferKind(items);
 
   // 몰 이름. 11번가는 옥션 형식을 빌려 오므로 판매자 앞의 '11st' 로만 알아볼 수 있다.
   // 빠뜨리지 않게 덧붙이되, 옥션이 함께 남을 수 있다는 점은 서식 편집 안내에 적어 뒀다.
@@ -864,19 +877,19 @@ function bmBuildData(res) {
   const now = new Date();
   return {
     items, qty, total, infer,
-    summaries: bmSummaries(items, qty, infer, infer.kind),
-    malls: malls.join(", ") || BM_MARK,
+    summaryNames: bonSummaryNames(items),
+    malls: malls.join(", ") || BON_MARK,
     today: `${now.getFullYear()}. ${now.getMonth() + 1}. ${now.getDate()}.`,
   };
 }
 
-function bmTplDefault() { return audience === "admin" ? BM_TPL_ADMIN : BM_TPL_TEACHER; }
-function bmTplKey() { return audience === "admin" ? "tplAdmin" : "tplTeacher"; }
+function bonTplDefault() { return audience === "admin" ? BON_TPL_ADMIN : BON_TPL_TEACHER; }
+function bonTplKey() { return audience === "admin" ? "tplAdmin" : "tplTeacher"; }
 
-function bmRenderChips() {
+function bonRenderChips() {
   const box = $("bon-chips");
-  const recent = bmStore().deptRecent || [];
-  const sug = bmData ? BM_DEPT_SUGGEST[$("bon-kind").value.trim()] : null;
+  const recent = bonStore().deptRecent || [];
+  const sug = bonData ? BON_DEPT_SUGGEST[$("bon-kind").value.trim()] : null;
   const list = recent.slice();
   if (sug && !list.includes(sug)) list.push(sug);
   if (!list.length) { box.innerHTML = ""; return; }
@@ -886,63 +899,63 @@ function bmRenderChips() {
   for (const b of box.querySelectorAll(".chip")) {
     b.addEventListener("click", () => {
       $("bon-dept").value = b.dataset.dept;
-      bmRemember("dept", b.dataset.dept);
-      bmRender();
+      bonRemember("dept", b.dataset.dept);
+      bonRender();
     });
   }
 }
 
 // 선택 항목의 현재 상태. {목적:{v:"",on:true}, …} — 화면을 다시 그려도 여기서 되살린다.
-let bmFields = {};
+let bonFields = {};
 
 // 서식에 실제로 쓰인 치환자만 화면에 줄로 띄운다.
-function bmActiveOpts() {
+function bonActiveOpts() {
   const tpl = $("bon-tpl").value;
-  return BM_OPTS.filter(([name]) => tpl.includes("{" + name + "}"));
+  return BON_OPTS.filter(([name]) => tpl.includes("{" + name + "}"));
 }
 
-function bmBuildOpts() {
+function bonBuildOpts() {
   const box = $("bon-opts");
-  box.innerHTML = bmActiveOpts().map(([name, ph]) => {
-    const f = bmFields[name] || { v: "", on: false };
+  box.innerHTML = bonActiveOpts().map(([name, ph]) => {
+    const f = bonFields[name] || { v: "", on: false };
     return `<div class="opt-row${f.on ? "" : " off"}" data-row="${name}">`
       + `<label class="opt-tick"><input type="checkbox" data-f="${name}"${f.on ? " checked" : ""}><span>${name}</span></label>`
       + `<input type="text" data-f="${name}" placeholder="${ph}" autocomplete="off"></div>`;
   }).join("");
 
   for (const el of box.querySelectorAll('input[type="text"]')) {
-    el.value = (bmFields[el.dataset.f] || {}).v || "";
+    el.value = (bonFields[el.dataset.f] || {}).v || "";
     el.addEventListener("input", () => {
       const name = el.dataset.f, val = el.value;
-      bmFields[name].v = val;
+      bonFields[name].v = val;
       // 쓰는 순간 항목이 켜지고, 지우면 다시 꺼진다.
       // 목적만은 비어도 자동 문구가 들어가므로 끄지 않는다.
-      if (val.trim()) bmFields[name].on = true;
-      else if (name !== "목적") bmFields[name].on = false;
-      box.querySelector(`.opt-row[data-row="${name}"]`).classList.toggle("off", !bmFields[name].on);
-      box.querySelector(`input[type="checkbox"][data-f="${name}"]`).checked = bmFields[name].on;
-      bmPersistFields();
-      bmRender();
+      if (val.trim()) bonFields[name].on = true;
+      else if (name !== "목적") bonFields[name].on = false;
+      box.querySelector(`.opt-row[data-row="${name}"]`).classList.toggle("off", !bonFields[name].on);
+      box.querySelector(`input[type="checkbox"][data-f="${name}"]`).checked = bonFields[name].on;
+      bonPersistFields();
+      bonRender();
     });
   }
   for (const el of box.querySelectorAll('input[type="checkbox"]')) {
     el.addEventListener("change", () => {
       const name = el.dataset.f;
-      bmFields[name].on = el.checked;
+      bonFields[name].on = el.checked;
       box.querySelector(`.opt-row[data-row="${name}"]`).classList.toggle("off", !el.checked);
-      bmPersistFields();
-      bmRender();
+      bonPersistFields();
+      bonRender();
     });
   }
 }
 
-function bmPersistFields() {
-  bmSave({ fields: bmFields });
-  if (bmFields["예산과목"] && bmFields["예산과목"].v.trim()) bmRemember("budget", bmFields["예산과목"].v);
+function bonPersistFields() {
+  bonSave({ fields: bonFields });
+  if (bonFields["예산과목"] && bonFields["예산과목"].v.trim()) bonRemember("budget", bonFields["예산과목"].v);
 }
 
 // 공문서 항목 기호는 바깥에서부터 1. → 가. → 1) → 가) 순이다.
-const BM_LEVEL_STYLE = [
+const BON_LEVEL_STYLE = [
   (n) => `${n}. `,
   (n) => `${"가나다라마바사아자차카타파하"[(n - 1) % 14]}. `,
   (n) => `${n}) `,
@@ -956,7 +969,7 @@ const BM_LEVEL_STYLE = [
 // '1.2.3.' 으로 올라가야 하고 들여쓰기도 한 칸 당겨져야 한다.
 // 그래서 들여쓰기를 서식에 글자로 두지 않고 여기서 단계에 맞춰 계산한다.
 // (서식 안의 들여쓰기는 읽기 좋으라고 둔 것이라 무시한다.)
-function bmLayout(text, empties) {
+function bonLayout(text, empties) {
   const kept = text.split("\n").filter((line) => {
     const found = line.match(/\{[^}]+\}/g);
     if (!found) return true;
@@ -983,33 +996,33 @@ function bmLayout(text, empties) {
     let n, numbered;
     if (d === 1) { n = ++t; numbered = topNumbered; }
     else { const k = group[i]; n = s[k] = (s[k] || 0) + 1; numbered = subs[k] > 1; }
-    return "  ".repeat(si) + (numbered ? BM_LEVEL_STYLE[si](n) : "") + body;
+    return "  ".repeat(si) + (numbered ? BON_LEVEL_STYLE[si](n) : "") + body;
   }).join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-function bmRender() {
-  if (!bmData) return;
+function bonRender() {
+  if (!bonData) return;
   const dept = $("bon-dept").value.trim();
   const kind = $("bon-kind").value.trim() || "물품";
-  const D = dept || BM_MARK;
+  const D = dept || BON_MARK;
 
   // 자동 치환자는 늘 값이 있고, 선택 항목은 꺼져 있으면 '빈 값'으로 쳐서 줄이 빠진다.
   const vals = {
     "사용처": D, "물품군": kind,
     "품목요약": $("bon-summary").value.trim(),   // 비우면 구입품목 줄이 빠진다
-    "건수": String(bmData.items.length), "수량": String(bmData.qty),
-    "금액": Number(bmData.total).toLocaleString("ko-KR"),
-    "금액한글": bmHangulAmount(bmData.total),
-    "오늘": bmData.today,
+    "건수": String(bonData.items.length), "수량": String(bonData.qty),
+    "금액": Number(bonData.total).toLocaleString("ko-KR"),
+    "금액한글": bonHangulAmount(bonData.total),
+    "오늘": bonData.today,
   };
   const empties = new Set();
   if (!dept) empties.add("사용처");   // ○○ 로 남지만, 그 줄만 있는 항목이면 빠지게 한다
 
-  for (const [name] of BM_OPTS) {
-    const f = bmFields[name] || { v: "", on: false };
+  for (const [name] of BON_OPTS) {
+    const f = bonFields[name] || { v: "", on: false };
     let v = f.on ? f.v.trim() : "";
     if (name === "목적" && f.on && !v) v = `${D} 운영에 필요한 ${kind} 구입`;
-    if (name === "구입처" && f.on && !v) v = bmData.malls;
+    if (name === "구입처" && f.on && !v) v = bonData.malls;
     vals[name] = v;
     if (!v) empties.add(name);
   }
@@ -1017,110 +1030,115 @@ function bmRender() {
   for (const [k, v] of Object.entries(vals)) if (!v) empties.add(k);
 
   // 줄 삭제·번호 매기기가 먼저다. 치환을 먼저 하면 어느 줄이 비었는지 알 수 없다.
-  let text = bmLayout($("bon-tpl").value, empties);
+  let text = bonLayout($("bon-tpl").value, empties);
   for (const [k, v] of Object.entries(vals)) text = text.split("{" + k + "}").join(v);
   $("bon-out").dataset.text = text;
 
   const esc = text.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-  $("bon-out").innerHTML = esc.split(BM_MARK).join(`<mark>${BM_MARK}</mark>`);
+  $("bon-out").innerHTML = esc.split(BON_MARK).join(`<mark>${BON_MARK}</mark>`);
 
-  const holes = text.split(BM_MARK).length - 1;
+  const holes = text.split(BON_MARK).length - 1;
   const warn = $("bon-warn");
-  warn.textContent = holes ? `채워야 할 자리 ${holes}곳 (${BM_MARK} 표시)` : "빈 자리 없음 — 그대로 붙여넣어도 됩니다";
+  warn.textContent = holes ? `채워야 할 자리 ${holes}곳 (${BON_MARK} 표시)` : "빈 자리 없음 — 그대로 붙여넣어도 됩니다";
   warn.classList.toggle("done", holes === 0);
-  bmRenderChips();
+  bonRenderChips();
 }
 
-function bmInit(res) {
-  bmData = bmBuildData(res);
+function bonInit(res) {
+  bonData = bonBuildData(res);
 
   // 읽힌 품목이 하나도 없으면(파일을 못 읽었거나 빈 견적서) 만들 본문이 없다.
   // 이때 카드를 띄우면 '금 0원(금영원)' 짜리 품의가 복사 가능한 채로 남는다.
-  if (!bmData.items.length) {
-    bmData = null;
+  if (!bonData.items.length) {
+    bonData = null;
     $("bonmun-card").classList.add("hidden");
     return;
   }
 
-  const st = bmStore();
+  const st = bonStore();
 
   $("bon-dept").value = st.dept || "";
 
   // 물품 성격만 자동으로 채운다. 품명에서 나온 값이라 근거가 있고, 틀려도 눈에 바로 띈다.
-  $("bon-kind").value = bmData.infer.kind;
-  $("bon-kind-note").textContent = bmData.infer.hits
-    ? `— 품명 ${bmData.infer.hits}/${bmData.infer.total}건에서 추정, 바꿔도 됩니다`
+  $("bon-kind").value = bonData.infer.kind;
+  $("bon-kind-note").textContent = bonData.infer.hits
+    ? `— 품명 ${bonData.infer.hits}/${bonData.infer.total}건에서 추정, 바꿔도 됩니다`
     : "— 품명으로 판단이 안 돼 기본값입니다";
-  $("bon-kind-list").innerHTML = BM_KINDS.map(([k]) => `<option value="${k}"></option>`).join("");
+  $("bon-kind-list").innerHTML = BON_KINDS.map(([k]) => `<option value="${k}"></option>`).join("");
 
-  // 요약 후보는 물품 성격을 읽어 만들므로 위 줄보다 뒤에 와야 한다.
-  // 장바구니마다 달라지는 값이라 기억하지 않고 변환할 때마다 새로 만든다.
-  bmSummaryTouched = false;
-  bmRefreshSummaries(true);
+  // 요약은 장바구니마다 달라지는 값이라 기억하지 않고 변환할 때마다 새로 만든다.
+  bonRefreshSummaries(true);
 
   // 처음에는 가장 간단한 서식(목적·구입처만)으로 두고, 쓴 적 있는 항목은 되살린다.
   const saved = st.fields || {};
-  bmFields = {};
-  for (const [name, , on, def] of BM_OPTS) {
-    bmFields[name] = saved[name] ? { v: saved[name].v || "", on: !!saved[name].on } : { v: def, on };
+  bonFields = {};
+  for (const [name, , on, def] of BON_OPTS) {
+    bonFields[name] = saved[name] ? { v: saved[name].v || "", on: !!saved[name].on } : { v: def, on };
   }
 
-  $("bon-tpl").value = st[bmTplKey()] || bmTplDefault();
+  $("bon-tpl").value = st[bonTplKey()] || bonTplDefault();
   $("bonmun-card").classList.remove("hidden");
-  bmBuildOpts();
-  bmRender();
+  bonBuildOpts();
+  bonRender();
 }
 
 // 탭(품의자/원인행위)을 바꾸면 서식이 달라진다. 사용자가 고친 서식이 있으면 그걸 살린다.
-function bmSyncAudience() {
-  if (!bmData) return;
-  $("bon-tpl").value = bmStore()[bmTplKey()] || bmTplDefault();
-  bmBuildOpts();
-  bmRender();
+function bonSyncAudience() {
+  if (!bonData) return;
+  $("bon-tpl").value = bonStore()[bonTplKey()] || bonTplDefault();
+  bonBuildOpts();
+  bonRender();
 }
 
 // 물품 성격을 바꾸면 '○○ 등 N종' 후보도 따라가야 한다. 다만 사용자가 요약을 직접
 // 손댔거나 다른 후보를 고른 뒤라면 그 선택을 덮어쓰지 않는다.
-let bmSummaryTouched = false;
 
-function bmRefreshSummaries(force) {
-  if (!bmData) return;
-  const list = bmSummaries(bmData.items, bmData.qty, bmData.infer, $("bon-kind").value.trim());
-  bmData.summaries = list;
+function bonRefreshSummaries(force) {
+  if (!bonData) return;
+  const list = bonSummaryOptions($("bon-summary-form").value);
+  bonData.summaries = list;
   $("bon-summary-list").innerHTML = list
     .map((s) => `<option value="${s.replace(/"/g, "&quot;")}"></option>`).join("");
-  if (force || !bmSummaryTouched) $("bon-summary").value = list[0];
+  if (force) $("bon-summary").value = list[0];
 }
 
-$("bon-dept").addEventListener("input", bmRender);
-$("bon-kind").addEventListener("input", () => { bmRefreshSummaries(); bmRender(); });
-$("bon-summary").addEventListener("input", () => { bmSummaryTouched = true; bmRender(); });
-$("bon-dept").addEventListener("change", () => bmRemember("dept", $("bon-dept").value));
+$("bon-dept").addEventListener("input", bonRender);
+$("bon-kind").addEventListener("input", bonRender);
+$("bon-summary").addEventListener("input", bonRender);
+
+// 표현을 바꿔도 고른 품목은 유지한다. 목록의 순서가 같으므로 같은 자리로 옮겨 준다.
+$("bon-summary-form").addEventListener("change", () => {
+  const at = (bonData ? bonData.summaries : []).indexOf($("bon-summary").value);
+  bonRefreshSummaries(false);
+  if (at >= 0) $("bon-summary").value = bonData.summaries[at];
+  bonRender();
+});
+$("bon-dept").addEventListener("change", () => bonRemember("dept", $("bon-dept").value));
 $("bon-tpl").addEventListener("input", () => {
-  bmSave({ [bmTplKey()]: $("bon-tpl").value });
-  bmBuildOpts();     // 서식에서 치환자를 넣거나 빼면 항목 줄도 따라 생기고 사라진다
-  bmRender();
+  bonSave({ [bonTplKey()]: $("bon-tpl").value });
+  bonBuildOpts();     // 서식에서 치환자를 넣거나 빼면 항목 줄도 따라 생기고 사라진다
+  bonRender();
 });
 $("bon-tpl-toggle").addEventListener("click", () => {
   $("bon-tpl-box").classList.toggle("hidden");
 });
 $("bon-tpl-reset").addEventListener("click", (e) => {
   e.preventDefault();
-  $("bon-tpl").value = bmTplDefault();
-  bmSave({ [bmTplKey()]: null });
-  bmBuildOpts();
-  bmRender();
+  $("bon-tpl").value = bonTplDefault();
+  bonSave({ [bonTplKey()]: null });
+  bonBuildOpts();
+  bonRender();
   toast("기본 서식으로 되돌렸습니다");
 });
 $("bon-copy").addEventListener("click", async () => {
   const text = $("bon-out").dataset.text || "";
   if (!text) return;
-  bmRemember("dept", $("bon-dept").value);
-  bmPersistFields();
+  bonRemember("dept", $("bon-dept").value);
+  bonPersistFields();
   try {
     await navigator.clipboard.writeText(text);
-    const holes = text.split(BM_MARK).length - 1;
-    toast(holes ? `본문을 복사했습니다 — ${BM_MARK} ${holes}곳은 에듀파인에서 채우세요` : "본문을 복사했습니다");
+    const holes = text.split(BON_MARK).length - 1;
+    toast(holes ? `본문을 복사했습니다 — ${BON_MARK} ${holes}곳은 에듀파인에서 채우세요` : "본문을 복사했습니다");
   } catch { toast("복사 실패 — 브라우저 권한을 확인하세요"); }
 });
 
@@ -1143,7 +1161,7 @@ function showTab(tab) {
     $("dl-admin").classList.toggle("hidden", tab !== "admin");
     $("hint-teacher").classList.toggle("hidden", tab !== "teacher");
     $("hint-admin").classList.toggle("hidden", tab !== "admin");
-    bmSyncAudience();
+    bonSyncAudience();
   }
 }
 for (const t of ["teacher", "admin", "guide"]) {
