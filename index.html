@@ -492,6 +492,10 @@
 <script>
 const PYODIDE_INDEX = "https://cdn.jsdelivr.net/pyodide/v0.28.3/full/";
 let pyodide = null;
+// pyodide 변수는 런타임이 뜨자마자 채워지지만, convert() 는 그로부터 몇 단계 뒤
+// converter.py 를 실행해야 정의된다. 그 사이에 파일을 넣으면 [변환하기] 가 열려
+// NameError 가 났다. 준비 완료를 이 플래그로 따로 표시한다.
+let pyReady = false;
 let files = [];            // [{name, bytes(Uint8Array)}]
 let lastResult = null;
 
@@ -547,7 +551,7 @@ function renderFiles() {
   updateRunState();
 }
 function updateRunState() {
-  runBtn.disabled = !(pyodide && files.length > 0);
+  runBtn.disabled = !(pyReady && files.length > 0);
 }
 
 // ---------- 키 기억 ----------
@@ -586,13 +590,14 @@ await micropip.install("pdfplumber", deps=False)   # pypdfium2(네이티브) 건
   setStatus("변환기 로드 중…", true);
   const src = await (await fetch("converter.py")).text();
   await pyodide.runPythonAsync(src);
+  pyReady = true;
   setStatus("준비 완료. 파일을 넣고 [변환하기]를 누르세요.", false);
   updateRunState();
 }
 
 // ---------- 변환 실행 ----------
 runBtn.addEventListener("click", async () => {
-  if (!pyodide || files.length === 0) return;
+  if (!pyReady || files.length === 0) return;
   runBtn.disabled = true;
   const key = keyInput.value.trim();
   const useGemini = key.length > 0;
